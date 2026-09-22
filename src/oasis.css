@@ -110,3 +110,21 @@ body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
 .ex-dock>.oasis-zoomout{bottom:auto;top:-58px}
 @media(max-width:1440px){.oasis-chip{font-size:10px;padding:5px 10px;gap:6px}body .exploration .ex-legend{gap:6px}}
 .oasis-feed li{display:block}
+
+/* Right panel: Network / Top regions switch and the regional leaderboard. */
+.oasis-tabs{display:inline-flex;gap:2px;padding:2px;border:1px solid #d9dfe22e;border-radius:20px;background:#0d1216b0}
+.oasis-tabs button{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);padding:5px 10px;border-radius:20px}
+.oasis-tabs button[aria-selected=true]{background:var(--toro);color:#fff}
+.oasis-kpis-regions{grid-template-columns:1fr}
+.oasis-metrics{display:flex;gap:6px}
+.oasis-metrics button{font-size:11px;color:#c3cbcf;border:1px solid #d9dfe224;border-radius:20px;padding:5px 11px;background:#0d1216a0}
+.oasis-metrics button[aria-pressed=true]{border-color:#e11837b0;background:var(--toro-soft);color:#fff}
+.oasis-regions{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.oasis-regions button{position:relative;width:100%;display:grid;grid-template-columns:18px 1fr 54px auto;align-items:center;gap:10px;padding:10px 12px;text-align:left;background:#0b0f13d9;border:1px solid #d9dfe21f;border-radius:4px;overflow:hidden;backdrop-filter:blur(14px);cursor:pointer}
+.oasis-regions button:hover{border-color:#e1183788}
+.oasis-regions b{font-size:11px;color:var(--muted);font-weight:500}
+.oasis-regions span{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oasis-regions em{font-style:normal;font-size:14px;font-variant-numeric:tabular-nums;color:#fff;min-width:3ch;text-align:right}
+.oasis-regions i{position:absolute;left:0;bottom:0;height:2px;background:var(--toro);opacity:.85}
+.oasis-mini{width:54px;height:16px}
+.oasis-kpis .oasis-caption{grid-column:1/-1;margin:2px 2px 0!important}

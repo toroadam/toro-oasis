@@ -12,3 +12,4 @@ data/gazetteer.json
 .env.local
 data/cache/
 .geonames/
+.claude/

@@ -40,18 +40,35 @@ if(data.source!=='mixpanel')document.querySelector('.wordmark').insertAdjacentHT
 const place=c=>{const [, , name,region]=data.cities[c];return region&&region!==name?`${name}, ${region}`:name;};
 const clock=d=>d.toLocaleString('en-US',{timeZone:'UTC',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
 
-// Network cards: the default right-hand panel whenever no city is selected.
-let liveKpis=null;
+// Network cards and the regional leaderboard share the right-hand panel whenever no city
+// is selected; the header switches between them.
+let liveKpis=null,kpiView='network',regionMetric='customers';
+const METRICS={customers:{label:'Customers',key:'customers'},added:{label:'Controllers',key:'added'},opens:{label:'Activity',key:'opens'}};
+const miniSpark=values=>{const max=Math.max(1,...values),w=54,h=16,step=w/(values.length-1);return `<svg class="oasis-mini" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${values.map((v,i)=>`${(i*step).toFixed(1)},${(h-1-(v/max)*(h-3)).toFixed(1)}`).join(' ')}" fill="none" stroke="#e11837" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg>`;};
+function renderRegions(){
+ const m=METRICS[regionMetric],rows=[...(data.regions??[])].sort((a,b)=>b[m.key]-a[m.key]).slice(0,5),max=Math.max(1,rows[0]?.[m.key]??1);
+ return `<div class="oasis-metrics" role="group" aria-label="Rank by">${Object.entries(METRICS).map(([id,x])=>`<button data-metric="${id}" aria-pressed="${id===regionMetric}">${x.label}</button>`).join('')}</div>
+  <ol class="oasis-regions">${rows.map((r,i)=>`<li><button data-region="${data.regions.indexOf(r)}"><b>${i+1}</b><span>${r.region}</span>${miniSpark(r.daily)}<em>${fmt.format(r[m.key])}</em><i style="width:${(r[m.key]/max*100).toFixed(1)}%"></i></button></li>`).join('')}</ol>
+  <p class="oasis-caption">${regionMetric==='customers'?'Signed-in customers':regionMetric==='added'?'Controllers added':'App opens'} by state or province, last 30 days</p>`;
+}
 function renderKpis(){
  const k={...data.kpis,...(liveKpis??{})},pct=k.online==null?'—':`${(k.online*100).toFixed(1).replace(/\.0$/,'')}%`;
  const asOf=liveKpis?'<b class="oasis-live-dot"></b>Live':`As of ${new Date(k.asOf+'T12:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})}`;
- kpis.innerHTML=`<header><span class="eyebrow">NETWORK</span><span>${asOf}</span></header>
-  <div class="oasis-kpi"><span>Customers</span><strong>${fmt.format(k.users)}</strong><small>${k.usersNote??`App users since ${k.usersSince}`}</small></div>
+ kpis.classList.toggle('oasis-kpis-regions',kpiView==='regions');
+ if($('.ex-detail').hidden)feed.hidden=kpiView==='regions'; // the leaderboard takes the feed's space
+ kpis.innerHTML=`<header><div class="oasis-tabs" role="tablist"><button role="tab" data-view="network" aria-selected="${kpiView==='network'}">Network</button><button role="tab" data-view="regions" aria-selected="${kpiView==='regions'}">Top regions</button></div><span>${asOf}</span></header>
+  ${kpiView==='regions'?renderRegions():`<div class="oasis-kpi"><span>Customers</span><strong>${fmt.format(k.users)}</strong><small>${k.usersNote??`App users since ${k.usersSince}`}</small></div>
   <div class="oasis-kpi"><span>Controllers</span><strong>${fmt.format(k.controllers)}</strong><small>${k.controllersNote??`Added through the app since ${k.controllersSince}`}</small></div>
   <div class="oasis-kpi"><span>New this month</span><strong style="color:#42ce11">${fmt.format(k.addedMonth)}</strong><small>Controllers added in ${k.month}</small></div>
-  <div class="oasis-kpi"><span>Online now</span><strong>${pct}</strong><i class="oasis-meter"><b style="width:${(k.online??0)*100}%"></b></i><small>${k.onlineNote?`Of ${fmt.format(k.reporting)} reporting, ${k.onlineNote.replace('seen online in the ','')}`:`Of ${fmt.format(k.reporting)} at last status report`}</small></div>`;
+  <div class="oasis-kpi"><span>Online now</span><strong>${pct}</strong><i class="oasis-meter"><b style="width:${(k.online??0)*100}%"></b></i><small>${k.onlineNote?`Of ${fmt.format(k.reporting)} reporting, ${k.onlineNote.replace('seen online in the ','')}`:`Of ${fmt.format(k.reporting)} at last status report`}</small></div>`}`;
 }
 renderKpis();
+kpis.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.view){kpiView=b.dataset.view;renderKpis();}
+ else if(b.dataset.metric){regionMetric=b.dataset.metric;renderKpis();}
+ else if(b.dataset.region)focusRegion(+b.dataset.region);
+});
 
 // Feed of controller outcomes. Each entry flies to its city.
 const verb={added:'Controller added',error:'Setup error',cancelled:'Setup cancelled'};
@@ -78,6 +95,11 @@ function hover(c,x,y){if(c<0){hoverTip.hidden=true;return;}hoverTip.hidden=false
 
 const layer=scene.attachLayer(oasisLayer(data,{onEvent:pushFeed,onPick:showCity,onHover:hover}));
 function focusCity(c){const [lat,lon]=data.cities[c];ui.active(-1);scene.flyTo(lat,lon,.8,2400);scene.setRotation(false);layer.select(c);showCity(c);}
+function focusRegion(i){
+ const r=data.regions[i];ui.active(-1);scene.flyTo(r.lat,r.lon,.55,2400);scene.setRotation(false);layer.select(-1);
+ detail.innerHTML=`<button class="ex-close" aria-label="Close region">✕</button><span class="eyebrow">REGION · ${r.lat.toFixed(1)}°, ${r.lon.toFixed(1)}°</span><h2>${r.region}</h2><p class="oasis-region">Last 30 days</p><dl class="oasis-stats"><div><dt>Customers</dt><dd>${fmt.format(r.customers)}</dd></div><div><dt>App opens</dt><dd>${fmt.format(r.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${r.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${r.error}</dd></div><div><dt>Cancelled</dt><dd>${r.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${r.watering}</dd></div></dl>${spark(r.daily)}<p class="oasis-caption">Daily app opens, last ${r.daily.length} days</p>`;
+ detail.hidden=false;kpis.hidden=true;feed.hidden=true;detail.querySelector('.ex-close').onclick=()=>showCity(-1);
+}
 function goHome(){ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
 zoomOut.onclick=goHome;
 

@@ -188,6 +188,33 @@ def fold_sparse(activity, events, cities):
     return folded, [[s, target[c], k] for s, c, k in events], out
 
 
+def build_regions(activity, events, cities, hours, customers_file):
+    """Adoption by state/province for the leaderboard: customers (distinct signed-in users,
+    from a filtered Insights export), controllers added, app opens and daily opens. Regions
+    with fewer than MIN_PLACE_EVENTS events are left out, matching the privacy floor."""
+    days = math.ceil(hours / 24)
+    customers = dict(json.load(open(customers_file))['rows']) if customers_file.exists() else {}
+    agg = {}
+    def row(c):
+        name = cities[c][3] or cities[c][2]
+        return agg.setdefault(name, {'region': name, 'opens': 0, 'added': 0, 'error': 0, 'cancelled': 0, 'watering': 0,
+                                     'daily': [0] * days, 'lat': 0.0, 'lon': 0.0, 'w': 0})
+    for (h, c), n in activity.items():
+        r = row(c); r['opens'] += n; r['daily'][h // 24] += n
+        r['lat'] += cities[c][0] * n; r['lon'] += cities[c][1] * n; r['w'] += n
+    for _, c, k in events:
+        r = row(c); r[['added', 'error', 'cancelled', 'watering'][k]] += 1
+        if not r['w']: r['lat'], r['lon'] = cities[c][0], cities[c][1]
+    out = []
+    for r in agg.values():
+        if r['opens'] + r['added'] + r['error'] + r['cancelled'] + r['watering'] < MIN_PLACE_EVENTS: continue
+        if r['w']: r['lat'], r['lon'] = r['lat'] / r['w'], r['lon'] / r['w']
+        r['lat'], r['lon'] = round(r['lat'], 3), round(r['lon'], 3)
+        r['customers'] = customers.get(r['region'], 0); del r['w']
+        out.append(r)
+    return sorted(out, key=lambda r: -r['opens'])
+
+
 def build_real(raw, gaz):
     raw = Path(raw)
     hours, hourly = insights_rows(raw / 'app_open_hourly_region.json')
@@ -265,12 +292,14 @@ def build_real(raw, gaz):
             events.append([int((t - start).total_seconds()), cid, KIND['watering']])
     events.sort()
     activity, events, cities = fold_sparse(activity, events, cities)
+    regions = build_regions(activity, events, cities, len(stamps), raw / 'customers_by_region.json')
     return {
         'source': 'mixpanel', 'project': 'Oasis Mobile',
         'start': start.isoformat().replace('+00:00', 'Z'), 'hours': len(stamps),
         'cities': cities,
         'activity': sorted([h, c, n] for (h, c), n in activity.items()),
         'events': events,
+        'regions': regions,
         'kpis': json.load(open(raw / 'kpis.json')) if (raw / 'kpis.json').exists() else build_kpis(raw),
         'skipped': dict(sorted(skipped.items(), key=lambda kv: -kv[1])),
     }
