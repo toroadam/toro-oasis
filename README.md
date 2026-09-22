@@ -5,6 +5,7 @@ Oasis irrigation activity on an interactive 3D globe.
 - **Red pulses** are people opening the Oasis app, at their city.
 - **Green beams and arcs** are controllers being added. Each arc is drawn from Toro HQ in Bloomington, Minnesota.
 - **Amber beams** are setup errors. **Grey ripples** are setups the user cancelled.
+- **Blue dots** are zones watering, started from the app (mostly test runs during setup). Scheduled watering runs on the controller and isn't in the analytics.
 - The day/night line follows the clock, so each evening wave rolls west across North America.
 
 **Replay** plays the last thirty days, at 15 minutes, 1 hour or 3 hours per second. **Live** replays the most recent two days as "today and yesterday" at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
