@@ -228,8 +228,26 @@ def build_real(raw, gaz):
                 if n: activity[(h, cid)] += n
 
     events = []
-    for name, kind_of in (('controller_add_completed.json', lambda r: 'added'),
-                          ('controller_add_failed.json', lambda r: 'server_error' if r[4] == 'server_error' else 'cancelled')):
+    # Preferred input: hourly per-city counts from Insights, filtered in Mixpanel to production,
+    # signed-in, non-Toro users (outcomes_hourly_city.json, metrics A-E as documented above).
+    # Each count becomes events spread deterministically through its hour.
+    hourly_outcomes = raw / 'outcomes_hourly_city.json'
+    if hourly_outcomes.exists():
+        rng = random.Random(3)
+        kinds = {'A.': KIND['added'], 'B.': KIND['server_error'], 'C.': KIND['cancelled'], 'D.': KIND['watering'], 'E.': KIND['watering']}
+        for name, series in json.load(open(hourly_outcomes))['result']['results'].items():
+            k = kinds[name[:2]]
+            hours_h = [datetime.fromisoformat(h if 'T' in h else h + 'T00:00').replace(tzinfo=timezone.utc) for h in series['headers'][1:]]
+            for row in series['rows']:
+                if row[0] == '$overall' or row[0].endswith(', $overall'): continue
+                region, city = row[0].split(', ', 1)
+                cid = city_id(region, city)
+                if cid is None: continue
+                for t, n in zip(hours_h, row[1:]):
+                    for _ in range(n or 0): events.append([int((t - start).total_seconds()) + rng.randrange(3600), cid, k])
+    expanded = (('controller_add_completed.json', lambda r: 'added'),
+                ('controller_add_failed.json', lambda r: 'server_error' if r[4] == 'server_error' else 'cancelled'))
+    for name, kind_of in ([] if hourly_outcomes.exists() else expanded):
         data = json.load(open(raw / name))
         for r in data['rows']:
             if not r[0]: continue
@@ -238,7 +256,7 @@ def build_real(raw, gaz):
             t = datetime.fromisoformat(r[0]).replace(tzinfo=timezone.utc)
             events.append([int((t - start).total_seconds()), cid, KIND[kind_of(r)]])
     # Optional: zones watering from the app, as property-value exports (time, country, $region, $city).
-    for f in sorted(raw.glob('watering_*.json')):
+    for f in ([] if hourly_outcomes.exists() else sorted(raw.glob('watering_*.json'))):
         for r in json.load(open(f))['rows']:
             if not r[0]: continue
             cid = city_id(r[2], r[3], r[1])
@@ -253,7 +271,7 @@ def build_real(raw, gaz):
         'cities': cities,
         'activity': sorted([h, c, n] for (h, c), n in activity.items()),
         'events': events,
-        'kpis': build_kpis(raw),
+        'kpis': json.load(open(raw / 'kpis.json')) if (raw / 'kpis.json').exists() else build_kpis(raw),
         'skipped': dict(sorted(skipped.items(), key=lambda kv: -kv[1])),
     }
 
