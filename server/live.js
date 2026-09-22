@@ -10,7 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const LAG_MS = 5 * 60_000, POLL_MS = 90_000, SLOW_MS = 15 * 60_000, KEEP_MS = 26 * 3600_000;
-const EVENTS = ['app_open', 'controller_add_completed', 'controller_add_failed', 'ControllerStatus'];
+const WATERING = ['ZonePlayPauseButton_clicked', 'TestZone_action', 'TestAll_Button_clicked', 'manual_run_requested_success'];
+const EVENTS = ['app_open', 'controller_add_completed', 'controller_add_failed', ...WATERING];
 // Internal test traffic, as "Region|City;Region|City" in OASIS_INTERNAL_PLACES (kept out of the repo).
 export const internalPlaces = () => new Set((process.env.OASIS_INTERNAL_PLACES ?? '').split(';').filter(Boolean).map(p => p.split('|').map(norm).join('|')));
 
@@ -38,9 +39,9 @@ export function createPlaces(root, {useDataset = true} = {}) {
  };
 }
 
-export function createLive({account, secret, project, root, fetchImpl = fetch}) {
+export function createLive({account, secret, project, root, fetchImpl = fetch, place = createPlaces(root)}) {
  const INTERNAL = internalPlaces();
- const configured = !!(account && secret && project), place = createPlaces(root);
+ const configured = !!(account && secret && project);
  const auth = 'Basic ' + Buffer.from(`${account}:${secret}`).toString('base64');
  const seen = new Set(); let events = [], kpis = null, lastFast = 0, lastSlow = 0, error = null, busy = null;
 
@@ -52,7 +53,7 @@ export function createLive({account, secret, project, root, fetchImpl = fetch}) 
  }
  const internal = p => INTERNAL.has(`${norm(p.$region)}|${norm(p.$city)}`);
  function shape({event, properties:p}) {
-  const kind = event === 'app_open' ? 'activity' : event === 'controller_add_completed' ? 'added' : event === 'controller_add_failed' ? (p.failure_category === 'server_error' ? 'error' : 'cancelled') : null;
+  const kind = event === 'app_open' ? 'activity' : event === 'controller_add_completed' ? 'added' : event === 'controller_add_failed' ? (p.failure_category === 'server_error' ? 'error' : 'cancelled') : WATERING.includes(event) ? 'watering' : null;
   if (!kind || internal(p)) return null;
   const spot = place(p.mp_country_code, p.$region, p.$city);
   return spot && {t:Math.round(p.time * 1000), kind, ...spot};
@@ -62,7 +63,7 @@ export function createLive({account, secret, project, root, fetchImpl = fetch}) 
   const now = Date.now();
   if (now - lastFast >= POLL_MS) {
    lastFast = now;
-   const from = day(now - LAG_MS - KEEP_MS + 2 * 3600_000), fresh = await exportRange(from, day(now), EVENTS.slice(0, 3));
+   const from = day(now - LAG_MS - KEEP_MS + 2 * 3600_000), fresh = await exportRange(from, day(now), EVENTS);
    for (const e of fresh) {const id = e.properties.$insert_id; if (id && seen.has(id)) continue; if (id) seen.add(id); const s = shape(e); if (s) events.push(s);}
    events = events.filter(e => e.t > now - KEEP_MS).sort((a, b) => a.t - b.t);
    if (seen.size > 200_000) seen.clear();
@@ -86,7 +87,7 @@ export function createLive({account, secret, project, root, fetchImpl = fetch}) 
   if (!configured) return {configured:false};
   try {busy ??= refresh().finally(() => busy = null); await busy;} catch (e) {error = e.message; console.error('[oasis-live]', e.message);}
   const now = Date.now(), cutoff = now - LAG_MS, midnight = Date.parse(day(cutoff));
-  const today = {activity:0, added:0, error:0, cancelled:0};
+  const today = {activity:0, added:0, error:0, cancelled:0, watering:0};
   for (const e of events) if (e.t >= midnight && e.t <= cutoff) today[e.kind]++;
   return {configured:true, now, lag:LAG_MS, updated:lastFast, error, kpis, today,
    events:events.filter(e => e.t > since && e.t <= cutoff)};

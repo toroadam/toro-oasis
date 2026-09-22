@@ -25,7 +25,9 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const {MIXPANEL_SERVICE_ACCOUNT:account, MIXPANEL_SERVICE_SECRET:secret} = process.env;
 const project = process.env.MIXPANEL_PROJECT_ID || '4009305';
 const TRACKING_START = '2026-04-01', WINDOW_DAYS = 30, RECENT_HOURS = 48, MIN_PLACE_EVENTS = 10;
-const EVENTS = ['app_open', 'controller_add_completed', 'controller_add_failed', 'ControllerStatus', 'controllers_loaded'];
+// Indices 5+ are zones watering started from the app (mostly test runs during setup).
+const EVENTS = ['app_open', 'controller_add_completed', 'controller_add_failed', 'ControllerStatus', 'controllers_loaded',
+ 'ZonePlayPauseButton_clicked', 'TestZone_action', 'TestAll_Button_clicked', 'manual_run_requested_success'];
 const CACHE = process.env.OASIS_CACHE_DIR || path.join(ROOT, 'data/cache');
 const DAY = 864e5, HOUR = 36e5;
 const iso = ms => new Date(ms).toISOString().slice(0, 10);
@@ -80,7 +82,7 @@ async function syncShards(now, hash) {
 export function build(rows, now, place) {
  const end = Math.floor(now / HOUR) * HOUR, start = end - WINDOW_DAYS * DAY, recentStart = now - RECENT_HOURS * HOUR;
  const INTERNAL = internalPlaces(), customer = rows.filter(r => !INTERNAL.has(`${norm(r[3])}|${norm(r[4])}`));
- const inWindow = customer.filter(r => r[0] >= start && r[0] <= now && r[1] <= 2);
+ const inWindow = customer.filter(r => r[0] >= start && r[0] <= now && (r[1] <= 2 || r[1] >= 5));
 
  // Two passes: count events per exact place, then fold sparse places into their region.
  const exact = r => place(r[2], r[3], r[4]), counts = new Map();
@@ -97,7 +99,7 @@ export function build(rows, now, place) {
  const activity = new Map(), events = [], recent = [];
  for (const r of inWindow) {
   const c = cityOf(r); if (c < 0) continue;
-  const kind = r[1] === 0 ? 0 : r[1] === 1 ? 1 : r[5] ? 2 : 3; // activity, added, error, cancelled
+  const kind = r[1] === 0 ? 0 : r[1] === 1 ? 1 : r[1] >= 5 ? 4 : r[5] ? 2 : 3; // activity, added, error, cancelled, watering
   if (r[0] < end) {
    if (kind === 0) {const k = `${Math.floor((r[0] - start) / HOUR)},${c}`; activity.set(k, (activity.get(k) ?? 0) + 1);}
    else events.push([Math.round((r[0] - start) / 1000), c, kind - 1]);

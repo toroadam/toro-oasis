@@ -4,7 +4,7 @@ import {oasisLayer,prepare,subsolar,KINDS} from './oasis-layer.js';
 import './oasis.css';
 
 const views=[
- {kicker:'01 / TORO OASIS',title:'The Oasis network,<br> hour by hour.',body:'Thirty days of the Oasis app, replayed across the globe. Every red pulse is someone checking on a yard. Every green arc is a new controller joining the network from Toro HQ.'},
+ {kicker:'01 / TORO OASIS',title:'The Oasis network,<br> hour by hour.',body:'Thirty days of the Oasis app, replayed across the globe. Every red pulse is someone checking on a yard, every blue dot is a zone watering, and every green arc is a new controller joining the network from Toro HQ.'},
  {kicker:'NORTH AMERICA',title:'Where Oasis<br> lives.',body:'Almost all Oasis activity is in the US and Canada. The day line follows the replay clock, so you can watch each evening wave roll west.',lat:41,lon:-97,zoom:.2},
  {kicker:'THE NORTHEAST',title:'The Philadelphia<br> corridor.',body:'The Philadelphia suburbs are one of the densest Oasis clusters. Select any city to see its thirty days.',lat:40.1,lon:-75.4,zoom:.86},
  {kicker:'THE SOUTHWEST',title:'Built for<br> the heat.',body:'Phoenix, Scottsdale, Mesa and Chandler. Irrigation matters most where water is scarce, and the activity shows it.',lat:33.5,lon:-112,zoom:.8},
@@ -14,7 +14,7 @@ const liveView={kicker:'LIVE',title:'Oasis,<br> right now.',body:'Activity from 
 const fmt=new Intl.NumberFormat('en-US');
 const legend=KINDS.map(k=>`<button class="oasis-chip" data-kind="${k.id}" aria-pressed="true" style="--chip:${k.color}"><i></i>${k.label}<b>0</b></button>`).join('');
 const ui=shell({id:'planet',...views[0],chapters:['Network','North America','Northeast','Southwest','Australia'],rangeLabel:'Replay',note:'Oasis app analytics · City-level locations · Drag to rotate · Scroll to zoom · Select a city',legend,
- sources:`<p>Activity comes from Toro's <strong>Oasis</strong> app analytics. Locations are the city associated with each phone's connection, never a street address. Places with little activity are shown at their state or region instead, and are drawn dimmer.</p><p>Red pulses are app opens, placed in the hour they happened. Green beams and arcs are controllers being added. Amber marks setup errors and grey marks setups the user cancelled; they are shown separately because most unfinished setups are cancellations, not failures.</p><p><strong>Network cards.</strong> Users are people who have opened the app since analytics began in April 2026. Controllers are those seen in the app since tracking of controller IDs began, which is lower than the full fleet. Online share is each controller's most recent reported status.</p><p><strong>Live</strong> streams real activity from today and yesterday, sped up so the network is always moving. The data is refreshed every hour.</p><p>Internal test traffic is excluded. No names, e-mail addresses, or user, device or controller identifiers are published. Times are UTC, and the sun position is approximate.</p><p>Globe renderer adapted from <a href="https://github.com/ethanplusai/earth-moon-solar" target="_blank" rel="noopener">Earth, Moon &amp; Solar System</a> by Ethan Rogers (MIT). Earth imagery is NASA-derived, via WebGL Earth and three-globe. The star background uses the HYG catalog (CC BY-SA 4.0). Place names from GeoNames (CC BY 4.0).</p>`});
+ sources:`<p>Activity comes from Toro's <strong>Oasis</strong> app analytics. Locations are the city associated with each phone's connection, never a street address. Places with little activity are shown at their state or region instead, and are drawn dimmer.</p><p>Red pulses are app opens, placed in the hour they happened. Green beams and arcs are controllers being added. Amber marks setup errors and grey marks setups the user cancelled; they are shown separately because most unfinished setups are cancellations, not failures. Blue dots are zones watering, started from the app: mostly test runs while a controller is being set up, plus manual runs. Scheduled watering runs on the controller itself and is not shown.</p><p><strong>Network cards.</strong> Users are people who have opened the app since analytics began in April 2026. Controllers are those seen in the app since tracking of controller IDs began, which is lower than the full fleet. Online share is each controller's most recent reported status.</p><p><strong>Live</strong> streams real activity from today and yesterday, sped up so the network is always moving. The data is refreshed every hour.</p><p>Internal test traffic is excluded. No names, e-mail addresses, or user, device or controller identifiers are published. Times are UTC, and the sun position is approximate.</p><p>Globe renderer adapted from <a href="https://github.com/ethanplusai/earth-moon-solar" target="_blank" rel="noopener">Earth, Moon &amp; Solar System</a> by Ethan Rogers (MIT). Earth imagery is NASA-derived, via WebGL Earth and three-globe. The star background uses the HYG catalog (CC BY-SA 4.0). Place names from GeoNames (CC BY 4.0).</p>`});
 
 // Elements the mobile layout moves must exist before the first await.
 const shellRoot=$('.world-shell');
@@ -55,7 +55,7 @@ renderKpis();
 const verb={added:'Controller added',error:'Setup error',cancelled:'Setup cancelled'};
 const chips=Object.fromEntries(KINDS.map(k=>[k.id,true]));
 function pushFeed({kind,city,at}){
- if(!chips[kind]||kind==='activity')return;
+ if(!chips[kind]||kind==='activity'||kind==='watering')return; // the feed is for controller outcomes
  const item=document.createElement('li');item.style.setProperty('--chip',KINDS.find(k=>k.id===kind).color);
  item.innerHTML=`<button><i></i><span><strong>${verb[kind]}</strong><em>${place(city)}</em></span><time>${clock(new Date(data.startDate.getTime()+at*1000)).split(', ')[1]}</time></button>`;
  item.querySelector('button').onclick=()=>focusCity(city);
@@ -68,8 +68,8 @@ function spark(values){const max=Math.max(1,...values),w=240,h=64,step=w/(values
 function showCity(c){
  const open=c>=0;detail.hidden=!open;kpis.hidden=open;feed.hidden=open;
  if(!open)return;
- const t=data.totals[c],[lat,lon,name,region,precise]=data.cities[c],quiet=!t.opens&&!t.added&&!t.error&&!t.cancelled;
- detail.innerHTML=`<button class="ex-close" aria-label="Close city">✕</button><span class="eyebrow">${precise?'CITY':'REGION'} · ${lat.toFixed(1)}°, ${lon.toFixed(1)}°</span><h2>${name}</h2><p class="oasis-region">${region&&region!==name?region:''}</p>${quiet?'<p class="oasis-caption">First seen in live mode. No activity in the thirty-day window.</p>':`<dl class="oasis-stats"><div><dt>App opens</dt><dd>${fmt.format(t.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${t.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${t.error}</dd></div><div><dt>Cancelled</dt><dd>${t.cancelled}</dd></div></dl>${spark(t.daily)}<p class="oasis-caption">Daily app opens, last ${t.daily.length} days</p>`}`;
+ const t=data.totals[c],[lat,lon,name,region,precise]=data.cities[c],quiet=!t.opens&&!t.added&&!t.error&&!t.cancelled&&!t.watering;
+ detail.innerHTML=`<button class="ex-close" aria-label="Close city">✕</button><span class="eyebrow">${precise?'CITY':'REGION'} · ${lat.toFixed(1)}°, ${lon.toFixed(1)}°</span><h2>${name}</h2><p class="oasis-region">${region&&region!==name?region:''}</p>${quiet?'<p class="oasis-caption">First seen in live mode. No activity in the thirty-day window.</p>':`<dl class="oasis-stats"><div><dt>App opens</dt><dd>${fmt.format(t.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${t.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${t.error}</dd></div><div><dt>Cancelled</dt><dd>${t.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${t.watering}</dd></div></dl>${spark(t.daily)}<p class="oasis-caption">Daily app opens, last ${t.daily.length} days</p>`}`;
  detail.querySelector('.ex-close').onclick=()=>{layer.select(-1);showCity(-1);};
 }
 function hover(c,x,y){if(c<0){hoverTip.hidden=true;return;}hoverTip.hidden=false;hoverTip.textContent=`${place(c)} · ${fmt.format(data.totals[c].opens)} opens`;hoverTip.style.transform=`translate(${x+14}px,${y-10}px)`;}
@@ -101,7 +101,7 @@ const base=data.startDate.getTime(),recent=(data.recent?.events??[]).map(([s,cit
 const stream={t0:0,from:base+(data.recent?.start??0)*1000,to:base+(data.recent?.end??0)*1000,next:0,counts:null,todayOpens:0};
 const streamClock=()=>stream.from+(performance.now()-stream.t0)*STREAM;
 const endDay=new Date(stream.to).toISOString().slice(0,10);
-function startStream(){stream.t0=performance.now();stream.next=0;stream.counts={activity:0,added:0,error:0,cancelled:0};stream.todayOpens=0;feed.replaceChildren();layer.setLive(streamClock,STREAM);layer.pushLive(recent);}
+function startStream(){stream.t0=performance.now();stream.next=0;stream.counts=Object.fromEntries(KINDS.map(k=>[k.id,0]));stream.todayOpens=0;feed.replaceChildren();layer.setLive(streamClock,STREAM);layer.pushLive(recent);}
 function advanceStream(){
  const t=streamClock();if(t>stream.to){startStream();return;}
  while(stream.next<recent.length&&recent[stream.next].t<=t){const e=recent[stream.next++];stream.counts[e.kind]++;if(e.kind==='activity'&&new Date(e.t).toISOString().slice(0,10)===endDay)stream.todayOpens++;}

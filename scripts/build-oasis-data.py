@@ -37,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 # Internal test traffic, as "Region|City;Region|City" in OASIS_INTERNAL_PLACES (kept out of the repo).
 _internal_raw = os.environ.get('OASIS_INTERNAL_PLACES', '')
-KIND = {'added': 0, 'server_error': 1, 'cancelled': 2}
+KIND = {'added': 0, 'server_error': 1, 'cancelled': 2, 'watering': 3}
 
 
 def norm(s):
@@ -212,9 +212,17 @@ def build_real(raw, gaz):
             if cid is None: continue
             t = datetime.fromisoformat(r[0]).replace(tzinfo=timezone.utc)
             events.append([int((t - start).total_seconds()), cid, KIND[kind_of(r)]])
+    # Optional: zones watering from the app, as property-value exports (time, country, $region, $city).
+    for f in sorted(raw.glob('watering_*.json')):
+        for r in json.load(open(f))['rows']:
+            if not r[0]: continue
+            cid = city_id(r[2], r[3], r[1])
+            if cid is None: continue
+            t = datetime.fromisoformat(r[0]).replace(tzinfo=timezone.utc)
+            events.append([int((t - start).total_seconds()), cid, KIND['watering']])
     events.sort()
     return {
-        'source': 'mixpanel', 'project': 'Oasis Mobile (4009305)',
+        'source': 'mixpanel', 'project': 'Oasis Mobile',
         'start': start.isoformat().replace('+00:00', 'Z'), 'hours': len(stamps),
         'cities': cities,
         'activity': sorted([h, c, n] for (h, c), n in activity.items()),

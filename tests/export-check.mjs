@@ -20,6 +20,7 @@ const rows = [
  ev(5, 'controller_add_failed', 'Arizona', 'Phoenix', {failure_category:'server_error'}),
  ev(6, 'controller_add_failed', 'Arizona', 'Phoenix', {failure_category:'user_cancellation'}),
  ev(2, 'app_open', 'Test Region', 'Testville', {user:500}),
+ ev(7, 'ZonePlayPauseButton_clicked', 'Arizona', 'Phoenix'),
  ev(0.2, 'app_open', 'Arizona', 'Phoenix', {user:3}),
  ev(24 * 40, 'app_open', 'Arizona', 'Phoenix', {user:77}),
  ev(10, 'controllers_loaded', 'Arizona', 'Phoenix', {controller_id:['C1', 'C2']}),
@@ -33,8 +34,8 @@ for (const leak of ['h_', 'user-', 'person@example.com', 'C1', 'Testville', 'Hor
 assert.deepEqual(data.cities.map(c => c[2]).sort(), ['British Columbia', 'Phoenix'], 'sparse town folded into its region');
 assert.equal(data.cities.find(c => c[2] === 'British Columbia')[4], 0, 'folded place is marked imprecise');
 assert.equal(data.activity.reduce((s, a) => s + a[2], 0), 13, 'replay: in-window full hours only, Testville and 40-day-old events excluded');
-assert.deepEqual(data.events.map(e => e[2]).sort(), [0, 1, 2], 'added, server error, cancellation');
-assert.equal(data.recent.events.length, 17, 'recent: 48 h up to now, including the current partial hour');
+assert.deepEqual(data.events.map(e => e[2]).sort(), [0, 1, 2, 3], 'added, server error, cancellation, watering');
+assert.equal(data.recent.events.length, 18, 'recent: 48 h up to now, including the current partial hour');
 assert.ok(data.recent.events.every(e => e[0] >= data.recent.start && e[0] <= data.recent.end));
 assert.equal(data.kpis.users, 14, 'distinct users since tracking start, internal excluded');
 assert.equal(data.kpis.controllers, 2);

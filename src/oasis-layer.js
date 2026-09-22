@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 
 // Oasis activity drawn on the globe: surface ripples for app activity, beams for
-// controller outcomes, and arcs from Toro HQ for every controller that joins.
+// controller outcomes, blue dots for zones watering, and arcs from Toro HQ for every
+// controller that joins.
 // Time is simulation seconds from the start of the dataset; every effect ages in
 // simulation time so pausing freezes the moment instead of letting it drain away.
 
@@ -10,7 +11,9 @@ export const KINDS = [
  {id:'added',label:'Controller added',color:'#42ce11'},
  {id:'error',label:'Setup error',color:'#ffb020'},
  {id:'cancelled',label:'Setup cancelled',color:'#9aa6ab'},
+ {id:'watering',label:'Watering',color:'#3079f0'},
 ];
+const OUTCOMES = ['added', 'error', 'cancelled', 'watering']; // replay event kinds 0-3
 const HQ = {lat:44.8408, lon:-93.2983}; // The Toro Company, Bloomington, Minnesota
 const RIPPLES = 2048, BEAMS = 192, ARCS = 18, ARC_POINTS = 72;
 const colors = KINDS.map(k => new THREE.Color(k.color));
@@ -23,10 +26,10 @@ export function subsolar(date) {
 
 export function prepare(data) {
  const hours = data.hours, buckets = Array.from({length:hours}, () => []), prefix = new Float64Array(hours + 1);
- const days = Math.ceil(hours / 24), totals = data.cities.map(() => ({opens:0, added:0, error:0, cancelled:0, daily:new Array(days).fill(0)}));
+ const days = Math.ceil(hours / 24), totals = data.cities.map(() => ({opens:0, added:0, error:0, cancelled:0, watering:0, daily:new Array(days).fill(0)}));
  for (const [h, c, n] of data.activity) {buckets[h]?.push([c, n]); totals[c].opens += n; totals[c].daily[Math.floor(h / 24)] += n;}
  for (let h = 0; h < hours; h++) prefix[h + 1] = prefix[h] + buckets[h].reduce((s, [, n]) => s + n, 0);
- for (const [, c, k] of data.events) totals[c][['added', 'error', 'cancelled'][k]]++;
+ for (const [, c, k] of data.events) totals[c][OUTCOMES[k]]++;
  return {...data, startDate:new Date(data.start), buckets, prefix, totals, duration:hours * 3600};
 }
 
@@ -38,7 +41,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   const normals = data.cities.map(([lat, lon]) => geographic(lat, lon, 1).normalize());
   const positions = normals.map(n => n.clone().multiplyScalar(lift));
   const hq = geographic(HQ.lat, HQ.lon, 1).normalize();
-  const time = {value:0}, visible = {value:new THREE.Vector4(1, 1, 1, 1)};
+  const time = {value:0}, visible = {value:KINDS.map(() => 1)};
   const palette = {value:colors};
 
   // Ripples: a flat quad per pulse, tangent to the surface, expanding with age.
@@ -52,13 +55,13 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    uniforms:{uTime:time, uVisible:visible, uColors:palette},
    vertexShader:`attribute float aBirth,aKind,aStrength,aLife;uniform float uTime;varying vec2 vUv;varying float vAge,vKind,vStrength;
     void main(){float age=(uTime-aBirth)/aLife;vAge=age;vUv=uv*2.-1.;vKind=aKind;vStrength=aStrength;
-     float size=(aKind<.5?.1:.19)*(.18+.82*sqrt(clamp(age,0.,1.)))*(.55+.45*aStrength);
+     float size=(aKind<.5?.1:aKind>3.5?.13:.19)*(.18+.82*sqrt(clamp(age,0.,1.)))*(.55+.45*aStrength);
      if(age<0.||age>1.)size=0.;
      gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position*size,1.);}`,
-   fragmentShader:`uniform vec3 uColors[4];uniform vec4 uVisible;varying vec2 vUv;varying float vAge,vKind,vStrength;
+   fragmentShader:`uniform vec3 uColors[5];uniform float uVisible[5];varying vec2 vUv;varying float vAge,vKind,vStrength;
     void main(){float r=length(vUv);if(r>1.)discard;float fade=pow(1.-vAge,1.6);
      float ring=smoothstep(.12,0.,abs(r-.8))*fade;float core=exp(-r*r*14.)*smoothstep(.35,0.,vAge);
-     int k=int(vKind+.5);float on=k==0?uVisible.x:k==1?uVisible.y:k==2?uVisible.z:uVisible.w;
+     int k=int(vKind+.5);float on=uVisible[k];
      float a=(ring*1.25+core*.9)*(.5+.5*vStrength)*on;gl_FragColor=vec4(uColors[k]*a,a);}`,
    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
   });
@@ -78,8 +81,8 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
     void main(){float age=(uTime-aBirth)/aLife;vAge=age;vKind=aKind;vH=position.z;
      float h=(aKind<1.5?.42:.26)*smoothstep(0.,.18,age);vec3 p=position;p.z*=h;if(age<0.||age>1.)p*=0.;
      gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(p,1.);}`,
-   fragmentShader:`uniform vec3 uColors[4];uniform vec4 uVisible;varying float vAge,vKind,vH;
-    void main(){int k=int(vKind+.5);float on=k==1?uVisible.y:k==2?uVisible.z:uVisible.w;
+   fragmentShader:`uniform vec3 uColors[5];uniform float uVisible[5];varying float vAge,vKind,vH;
+    void main(){int k=int(vKind+.5);float on=uVisible[k];
      float a=pow(1.-vH,1.5)*smoothstep(1.,.45,vAge)*on*.95;gl_FragColor=vec4(uColors[k]*a*1.4,a);}`,
    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
   }), BEAMS);
@@ -93,10 +96,10 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    const material = new THREE.ShaderMaterial({
     uniforms:{uTime:time, uBirth:{value:-1e9}, uLife:{value:1}, uVisible:visible, uColor:{value:colors[1]}},
     vertexShader:`attribute float aT;varying float vT;void main(){vT=aT;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader:`uniform float uTime,uBirth,uLife;uniform vec4 uVisible;uniform vec3 uColor;varying float vT;
+    fragmentShader:`uniform float uTime,uBirth,uLife;uniform float uVisible[5];uniform vec3 uColor;varying float vT;
      void main(){float age=(uTime-uBirth)/uLife;if(age<0.||age>1.)discard;float head=smoothstep(0.,.55,age);
       float trail=smoothstep(head-.45,head,vT)*step(vT,head);float fade=smoothstep(1.,.6,age);
-      float a=(trail*.85+step(vT,head)*.18)*fade*uVisible.y;gl_FragColor=vec4(uColor*a*1.3,a);}`,
+      float a=(trail*.85+step(vT,head)*.18)*fade*uVisible[1];gl_FragColor=vec4(uColor*a*1.3,a);}`,
     transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
    });
    const line = new THREE.Line(geometry, material); line.frustumCulled = false; line.renderOrder = 7; group.add(line); return line;
@@ -165,14 +168,14 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   // Simulation clock. In live mode the clock is wall time (minus the lag) and effects
   // come from a queue fed by the live poller instead of the replay dataset.
   let now = 0, playing = true, speed = 3600, nextHour = 0, nextEvent = 0, live = null, liveSpeed = 1, replayAt = 0, queue = [];
-  const counts = {activity:0, added:0, error:0, cancelled:0};
+  const counts = Object.fromEntries(KINDS.map(k => [k.id, 0]));
   function clear() {birth.array.fill(-1e9); beamBirth.array.fill(-1e9); arcs.forEach(a => a.material.uniforms.uBirth.value = -1e9); heat.fill(0); dirty.ripples = dirty.beams = true;}
   function seek(seconds) {
    now = THREE.MathUtils.clamp(seconds, 0, data.duration - 1);
    clear();
    nextHour = Math.floor(now / 3600); counts.activity = data.prefix[nextHour];
-   nextEvent = 0; counts.added = counts.error = counts.cancelled = 0;
-   while (nextEvent < data.events.length && data.events[nextEvent][0] < now) {counts[['added', 'error', 'cancelled'][data.events[nextEvent][2]]]++; nextEvent++;}
+   nextEvent = 0; for (const k of OUTCOMES) counts[k] = 0;
+   while (nextEvent < data.events.length && data.events[nextEvent][0] < now) {counts[OUTCOMES[data.events[nextEvent][2]]]++; nextEvent++;}
   }
   function spawnUntil(limit) {
    const pulse = 1.9 * speed, burst = 3.2 * speed;
@@ -186,6 +189,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    }
    while (nextEvent < data.events.length && data.events[nextEvent][0] <= limit) {
     const [at, c, k] = data.events[nextEvent++], type = k + 1;
+    if (type === 4) {ripple(c, 4, at, 1, pulse * 1.6); counts.watering++; onEvent?.({kind:'watering', city:c, at}); continue;}
     ripple(c, type, at, 1, burst); if (type < 3) beam(c, type, at, burst * 1.3); if (type === 1) arc(c, at, burst * 1.6);
     heat[c] = Math.min(2, heat[c] + (type === 1 ? 1.4 : .8));
     counts[KINDS[type].id]++; onEvent?.({kind:KINDS[type].id, city:c, at});
@@ -197,6 +201,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
     // Lifetimes are in simulation seconds, so they scale with the stream speed.
     const k = liveSpeed > 1 ? liveSpeed : 2; // true live: events are sparse, let them linger
     if (type === 0) {ripple(c, 0, at, .8, 3.5 * k); heat[c] = Math.min(2, heat[c] + .35); continue;}
+    if (type === 4) {ripple(c, 4, at, 1, 5 * k); onEvent?.({kind:id, city:c, at}); continue;}
     ripple(c, type, at, 1, 7 * k); if (type < 3) beam(c, type, at, 10 * k); if (type === 1) arc(c, at, 12 * k);
     heat[c] = Math.min(2, heat[c] + (type === 1 ? 1.4 : .8));
     onEvent?.({kind:id, city:c, at});
@@ -237,7 +242,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    get time() {return now;}, get playing() {return playing;}, counts,
    date() {return new Date(data.startDate.getTime() + now * 1000);},
    seek, setPlaying(v) {playing = v;}, setSpeed(v) {speed = v;}, get speed() {return speed;},
-   setVisible(id, on) {const i = KINDS.findIndex(k => k.id === id); visible.value.setComponent(i, on ? 1 : 0); if (i === 0) markerMaterial.uniforms.uOn.value = on ? 1 : .35;},
+   setVisible(id, on) {const i = KINDS.findIndex(k => k.id === id); visible.value[i] = on ? 1 : 0; if (i === 0) markerMaterial.uniforms.uOn.value = on ? 1 : .35;},
    select(c) {selected.value = c;},
    addCity, get live() {return !!live;},
    // clock: () => epoch ms for "now" in live mode, or null to return to the replay where it was.
