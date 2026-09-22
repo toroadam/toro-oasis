@@ -144,6 +144,28 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   });
   const markers = new THREE.Points(markerGeometry, markerMaterial); markers.frustumCulled = false; markers.renderOrder = 4; group.add(markers);
 
+  // Region highlight: the selected state/province painted translucent white onto an
+  // equirectangular canvas wrapped on a sphere just above the surface.
+  const shade = document.createElement('canvas'); shade.width = 4096; shade.height = 2048;
+  const shadeCtx = shade.getContext('2d'), shadeTexture = new THREE.CanvasTexture(shade);
+  shadeTexture.colorSpace = THREE.SRGBColorSpace; shadeTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  const shadeMaterial = new THREE.MeshBasicMaterial({map:shadeTexture, transparent:true, opacity:0, depthWrite:false});
+  const shadeMesh = new THREE.Mesh(new THREE.SphereGeometry(radius + .015, 160, 100), shadeMaterial);
+  shadeMesh.renderOrder = 3; shadeMesh.visible = false; group.add(shadeMesh);
+  let shadeTarget = 0;
+  function highlight(rings) {
+   if (!rings?.length) {shadeTarget = 0; return;}
+   const W = shade.width, H = shade.height, x = lon => (lon + 180) / 360 * W, y = lat => (90 - lat) / 180 * H;
+   shadeCtx.clearRect(0, 0, W, H); shadeCtx.lineJoin = 'round';
+   for (const ring of rings) {
+    shadeCtx.beginPath();
+    for (let i = 0; i < ring.length; i += 2) (i ? shadeCtx.lineTo : shadeCtx.moveTo).call(shadeCtx, x(ring[i]), y(ring[i + 1]));
+    shadeCtx.closePath(); shadeCtx.fillStyle = 'rgba(255,255,255,.4)'; shadeCtx.fill();
+    shadeCtx.strokeStyle = 'rgba(255,255,255,.85)'; shadeCtx.lineWidth = 2.5; shadeCtx.stroke();
+   }
+   shadeTexture.needsUpdate = true; shadeMesh.visible = true; shadeTarget = 1;
+  }
+
   let rippleCursor = 0, beamCursor = 0, arcCursor = 0;
   const matrix = new THREE.Matrix4(), unit = new THREE.Vector3(1, 1, 1);
   function ripple(c, k, at, s, lifeSeconds) {
@@ -238,7 +260,10 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
     if (dirty.ripples) {ripples.instanceMatrix.needsUpdate = birth.needsUpdate = kind.needsUpdate = strength.needsUpdate = life.needsUpdate = true; dirty.ripples = false;}
     if (dirty.beams) {beams.instanceMatrix.needsUpdate = beamBirth.needsUpdate = beamKind.needsUpdate = beamLife.needsUpdate = true; dirty.beams = false;}
     group.getWorldPosition(center.value);
+    shadeMaterial.opacity += (shadeTarget - shadeMaterial.opacity) * (1 - Math.exp(-dt * 4));
+    if (shadeTarget === 0 && shadeMaterial.opacity < .01) shadeMesh.visible = false;
    },
+   highlight,
    get time() {return now;}, get playing() {return playing;}, counts,
    date() {return new Date(data.startDate.getTime() + now * 1000);},
    seek, setPlaying(v) {playing = v;}, setSpeed(v) {speed = v;}, get speed() {return speed;},

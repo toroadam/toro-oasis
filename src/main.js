@@ -39,7 +39,9 @@ document.querySelector('.creator-link').innerHTML=data.source!=='mixpanel'?'Synt
 if(data.source!=='mixpanel')document.querySelector('.wordmark').insertAdjacentHTML('beforeend','<span class="oasis-badge" title="Synthetic sample: run scripts/build-oasis-data.py to use real Mixpanel data">Sample data</span>');
 
 const place=c=>{const [, , name,region]=data.cities[c];return region&&region!==name?`${name}, ${region}`:name;};
-const clock=d=>d.toLocaleString('en-US',{timeZone:'UTC',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+// Built from parts: Safari joins date and time with " at ", not ", ".
+const hhmm=d=>d.toLocaleTimeString('en-US',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',hour12:false});
+const clock=d=>`${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'})}, ${hhmm(d)}`;
 
 // Network cards and the regional leaderboard share the right-hand panel whenever no city
 // is selected; the header switches between them.
@@ -77,7 +79,7 @@ const chips=Object.fromEntries(KINDS.map(k=>[k.id,true]));
 function pushFeed({kind,city,at}){
  if(!chips[kind]||kind==='activity'||kind==='watering')return; // the feed is for controller outcomes
  const item=document.createElement('li');item.style.setProperty('--chip',KINDS.find(k=>k.id===kind).color);
- item.innerHTML=`<button><i></i><span><strong>${verb[kind]}</strong><em>${place(city)}</em></span><time>${clock(new Date(data.startDate.getTime()+at*1000)).split(', ')[1]}</time></button>`;
+ item.innerHTML=`<button><i></i><span><strong>${verb[kind]}</strong><em>${place(city)}</em></span><time>${hhmm(new Date(data.startDate.getTime()+at*1000))}</time></button>`;
  item.querySelector('button').onclick=()=>focusCity(city);
  feed.prepend(item);while(feed.children.length>5)feed.lastChild.remove();
 }
@@ -86,7 +88,8 @@ function pushFeed({kind,city,at}){
 const detail=$('.ex-detail'),hoverTip=document.createElement('div');hoverTip.className='oasis-tip';hoverTip.hidden=true;shellRoot.append(hoverTip);
 function spark(values){const max=Math.max(1,...values),w=240,h=64,step=w/(values.length-1);const pts=values.map((v,i)=>`${(i*step).toFixed(1)},${(h-4-(v/max)*(h-10)).toFixed(1)}`).join(' ');return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,${h} ${pts} ${w},${h}" fill="#e1183722" stroke="none"/><polyline points="${pts}" fill="none" stroke="#e11837" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;}
 function showCity(c){
- const open=c>=0;detail.hidden=!open;kpis.hidden=open;feed.hidden=open;
+ layer?.highlight(null);delete detail.dataset.region;
+ const open=c>=0;detail.hidden=!open;kpis.hidden=open;feed.hidden=open||kpiView==='regions'; // the leaderboard takes the feed's space
  if(!open)return;
  const t=data.totals[c],[lat,lon,name,region,precise]=data.cities[c],quiet=!t.opens&&!t.added&&!t.error&&!t.cancelled&&!t.watering;
  detail.innerHTML=`<button class="ex-close" aria-label="Close city">✕</button><span class="eyebrow">${precise?'CITY':'REGION'} · ${lat.toFixed(1)}°, ${lon.toFixed(1)}°</span><h2>${name}</h2><p class="oasis-region">${region&&region!==name?region:''}</p>${quiet?'<p class="oasis-caption">First seen in live mode. No activity in the thirty-day window.</p>':`<dl class="oasis-stats"><div><dt>App opens</dt><dd>${fmt.format(t.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${t.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${t.error}</dd></div><div><dt>Cancelled</dt><dd>${t.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${t.watering}</dd></div></dl>${spark(t.daily)}<p class="oasis-caption">Daily app opens, last ${t.daily.length} days</p>`}`;
@@ -96,12 +99,14 @@ function hover(c,x,y){if(c<0){hoverTip.hidden=true;return;}hoverTip.hidden=false
 
 const layer=scene.attachLayer(oasisLayer(data,{onEvent:pushFeed,onPick:showCity,onHover:hover}));
 function focusCity(c){const [lat,lon]=data.cities[c];ui.active(-1);scene.flyTo(lat,lon,.8,2400);scene.setRotation(false);layer.select(c);showCity(c);}
+let shapes=null;
+const loadShapes=()=>shapes??=fetch(import.meta.env.BASE_URL+'data/regions.geo.json').then(r=>r.ok?r.json():{}).catch(()=>({}));
 function focusRegion(i){
- const r=data.regions[i];ui.active(-1);scene.flyTo(r.lat,r.lon,.55,2400);scene.setRotation(false);layer.select(-1);
+ const r=data.regions[i];loadShapes().then(s=>{if(!detail.hidden&&detail.dataset.region===r.region)layer.highlight(s[r.region]);});ui.active(-1);scene.flyTo(r.lat,r.lon,.55,2400);scene.setRotation(false);layer.select(-1);
  detail.innerHTML=`<button class="ex-close" aria-label="Close region">✕</button><span class="eyebrow">REGION · ${r.lat.toFixed(1)}°, ${r.lon.toFixed(1)}°</span><h2>${r.region}</h2><p class="oasis-region">Last 30 days</p><dl class="oasis-stats"><div><dt>Customers</dt><dd>${fmt.format(r.customers)}</dd></div><div><dt>App opens</dt><dd>${fmt.format(r.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${r.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${r.error}</dd></div><div><dt>Cancelled</dt><dd>${r.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${r.watering}</dd></div></dl>${spark(r.daily)}<p class="oasis-caption">Daily app opens, last ${r.daily.length} days</p>`;
- detail.hidden=false;kpis.hidden=true;feed.hidden=true;detail.querySelector('.ex-close').onclick=()=>showCity(-1);
+ detail.dataset.region=r.region;detail.hidden=false;kpis.hidden=true;feed.hidden=true;detail.querySelector('.ex-close').onclick=()=>showCity(-1);
 }
-function goHome(){ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
+function goHome(){layer.highlight(null);ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
 zoomOut.onclick=goHome;
 
 // Replay controls.
