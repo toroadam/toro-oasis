@@ -2,7 +2,7 @@ import './mobile-layout.css';
 const media=matchMedia('(max-width:760px)');
 export function mobileLayout(page){
  const root=document.querySelector('.world-shell');let panel=null,moved=[],observer=null,lastStageAction=-Infinity;
- const specs=Object.fromEntries(['planet','moon'].map(id=>[id,{copy:'.ex-copy',actions:['.ex-play','#ex-in','#ex-out'],body:['.ex-dock','.ex-readout','.ex-extra','.ex-detail','.oasis-kpis'],context:()=>id==='planet'?'Toro Oasis · Live network':'Toro Oasis'}]));const spec=specs[page];
+ const specs=Object.fromEntries(['planet','moon'].map(id=>[id,{copy:'.ex-copy',actions:['.ex-play','#ex-in','#ex-out'],body:['.ex-dock','.ex-readout','.ex-extra','.ex-detail','.oasis-kpis'],context:()=>id==='planet'?'Toro Oasis':'Toro Oasis'}]));const spec=specs[page];
  // Move the live controls with return markers so listeners and desktop layout survive resizing.
  function move(selector,to){const node=root.querySelector(selector);if(!node)return;const marker=document.createComment('mobile layout return');node.before(marker);moved.push({node,marker});to.append(node);}
  function state(value){if(!panel)return;panel.dataset.state=value;panel.querySelector('#mobile-panel-toggle').setAttribute('aria-expanded',value==='open');panel.querySelector('#mobile-panel-toggle').textContent=value==='open'?'Back to globe ↓':'View controls ↑';panel.querySelector('#mobile-focus').textContent=value==='focus'?'Show controls':'Clear view';panel.querySelector('#mobile-focus').setAttribute('aria-pressed',value==='focus');panel.querySelector('.mobile-panel-body').inert=value!=='open';measure();}

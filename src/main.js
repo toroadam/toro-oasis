@@ -2,6 +2,7 @@ import {shell,$,bindZoom,reduced} from './exploration-shell.js';
 import {createScene} from './scene.js';
 import {oasisLayer,prepare,subsolar,KINDS} from './oasis-layer.js';
 import './oasis.css';
+import './oasis-mobile.css';
 
 const views=[
  {kicker:'01 / TORO OASIS',title:'The Oasis network,<br> hour by hour.',body:'Thirty days of the Oasis app, replayed across the globe. Every red pulse is someone checking on a yard, every blue dot is a zone watering, and every green arc is a new controller joining the network from Toro HQ.'},
