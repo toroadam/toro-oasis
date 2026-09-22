@@ -32,7 +32,7 @@ async function load(){
  throw Error('No Oasis dataset found');
 }
 const data=prepare(await load());
-document.querySelector('.creator-link').innerHTML=data.source!=='mixpanel'?'Synthetic sample · <strong>No Toro data</strong>':data.generated?'Oasis analytics · <strong>Updated hourly</strong>':'Oasis analytics · <strong>Last 30 days</strong>';
+document.querySelector('.creator-link').innerHTML=data.source!=='mixpanel'?'Synthetic sample · <strong>No Toro data</strong>':'Oasis analytics · <strong>30 days</strong>';
 if(data.source!=='mixpanel')document.querySelector('.wordmark').insertAdjacentHTML('beforeend','<span class="oasis-badge" title="Synthetic sample: run scripts/build-oasis-data.py to use real Mixpanel data">Sample data</span>');
 
 const place=c=>{const [, , name,region]=data.cities[c];return region&&region!==name?`${name}, ${region}`:name;};
@@ -97,8 +97,15 @@ document.querySelectorAll('[data-chapter]').forEach(b=>b.onclick=()=>{const i=+b
 const POLL=30000,STREAM=120;let live=false,liveKind=null,liveTimer=0,since=0,skew=0,lag=300000,liveToday=null,liveUpdated=0,liveError='';
 const liveClock=()=>Date.now()+skew-lag-POLL;
 const liveButton=document.querySelector('[data-mode="live"]');
-const base=data.startDate.getTime(),recent=(data.recent?.events??[]).map(([s,city,k])=>({t:base+s*1000,city,kind:KINDS[k].id}));
-const stream={t0:0,from:base+(data.recent?.start??0)*1000,to:base+(data.recent?.end??0)*1000,next:0,counts:null,todayOpens:0};
+const base=data.startDate.getTime();
+// Without a separate recent window (the published snapshot), Live replays the last 48 hours of
+// the replay data: controller events at their real times, each hour's app opens spread across it.
+data.recent??=(()=>{const from=(data.hours-48)*3600,end=data.hours*3600,ev=[];let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(const [h,c,n] of data.activity)if(h*3600>=from)for(let i=0;i<n;i++)ev.push([h*3600+Math.floor(rnd()*3600),c,0]);
+ for(const [s,c,k] of data.events)if(s>=from)ev.push([s,c,k+1]);
+ return {start:from,end,events:ev.sort((a,b)=>a[0]-b[0])};})();
+const recent=data.recent.events.map(([s,city,k])=>({t:base+s*1000,city,kind:KINDS[k].id}));
+const stream={t0:0,from:base+data.recent.start*1000,to:base+data.recent.end*1000,next:0,counts:null,todayOpens:0};
 const streamClock=()=>stream.from+(performance.now()-stream.t0)*STREAM;
 const endDay=new Date(stream.to).toISOString().slice(0,10);
 function startStream(){stream.t0=performance.now();stream.next=0;stream.counts=Object.fromEntries(KINDS.map(k=>[k.id,0]));stream.todayOpens=0;feed.replaceChildren();layer.setLive(streamClock,STREAM);layer.pushLive(recent);}
@@ -150,7 +157,7 @@ function frame(t){
  if(live&&liveKind==='stream'){
   advanceStream();const t=new Date(streamClock()),day=t.toISOString().slice(0,10)===endDay?'Today':'Yesterday';
   ui.readout(`${day}, ${t.toLocaleTimeString('en-US',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',hour12:false})} UTC`,`LIVE · ${fmt.format(stream.todayOpens)} OPENS TODAY`);
-  liveStatus.textContent=`Today and yesterday · updated ${ago(Date.now()-Date.parse(data.generated))}`;
+  liveStatus.textContent=data.generated?`Today and yesterday · updated ${ago(Date.now()-Date.parse(data.generated))}`:'Today and yesterday';
  }else if(live){
   ui.readout(clock(date)+' UTC',`LIVE · 5 MIN BEHIND · ${fmt.format(liveToday?.activity??0)} OPENS TODAY`);
   const age=liveUpdated?Math.max(0,Math.round((Date.now()+skew-liveUpdated)/1000)):null;

@@ -7,7 +7,7 @@ Oasis irrigation activity on an interactive 3D globe.
 - **Amber beams** are setup errors. **Grey ripples** are setups the user cancelled.
 - The day/night line follows the clock, so each evening wave rolls west across North America.
 
-**Replay** plays the last thirty days, at 15 minutes, 1 hour or 3 hours per second. **Live** streams real activity from today and yesterday at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
+**Replay** plays the last thirty days, at 15 minutes, 1 hour or 3 hours per second. **Live** replays the most recent two days as "today and yesterday" at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
 
 Select any city, or any event in the feed, to fly there and see its thirty-day totals. When nothing is selected, the right-hand panel shows four network cards: users, controllers, controllers added this month, and share online. A **Zoom out** button appears above the timeline whenever you are zoomed in close.
 
@@ -25,35 +25,23 @@ Node 22.12 or newer. Without real data, the app loads `public/data/oasis.sample.
 
 ## Deployment: GitHub Pages
 
-`.github/workflows/pages.yml` runs on every push to `main` and **hourly**. Each run:
+`.github/workflows/pages.yml` builds and deploys the site on every push to `main`.
 
-1. Pulls Oasis analytics from the Mixpanel Export API (`scripts/build-from-export.mjs`).
-2. Builds `public/data/oasis.json`: the 30-day replay, the last 48 hours for Live, and the network cards.
-3. Builds the site and deploys it to Pages.
+The site shows a fixed 30-day snapshot of Oasis analytics, committed as `public/data/oasis.json`. **Live** replays the snapshot's last 48 hours as "today and yesterday". No Mixpanel credentials are needed.
 
-Real data only ever exists inside the deployed Pages artifact. It is never committed.
+To refresh the snapshot, re-export from Mixpanel and rebuild it with `scripts/build-oasis-data.py`, which is documented in the script. Then commit the new file.
 
-Repository secrets:
-
-| Secret | Purpose |
-| --- | --- |
-| `MIXPANEL_SERVICE_ACCOUNT` | Mixpanel service account username, with access to the Oasis project |
-| `MIXPANEL_SERVICE_SECRET` | Its secret |
-| `OASIS_INTERNAL_PLACES` | Internal test locations to exclude, as `Region\|City;Region\|City` |
-
-Without the Mixpanel secrets, the workflow still deploys, using the synthetic sample.
+`scripts/build-from-export.mjs` can instead rebuild the data on every deploy from the Mixpanel Export API. It only runs if `MIXPANEL_SERVICE_ACCOUNT` and `MIXPANEL_SERVICE_SECRET` repo secrets exist. `OASIS_INTERNAL_PLACES` (`Region|City;…`) lists internal test locations to exclude.
 
 ## What gets published
 
-The site is public, so the builder publishes only what the globe needs:
+The site and the snapshot are public, so they hold only what the globe needs:
 
 - **Places at city level**, from the city associated with each phone's connection, never a street address. A place with fewer than 10 events in the window is folded into its state or region, so a single installation in a small town can't be pinpointed.
-- **Event times and kinds:** app open, controller added, setup error, setup cancelled.
+- **Event times and kinds:** app open, controller added, setup error, setup cancelled, watering.
 - **Network card totals.**
 
-No names, e-mail addresses, or user, device or controller identifiers are published, hashed or otherwise. `tests/export-check.mjs` enforces this.
-
-Between runs, the workflow caches one small row per event per day, so each build downloads only yesterday and today. Identifiers in the cache are replaced with keyed hashes, and each daily shard is encrypted (AES-256-GCM) with a key derived from the Mixpanel secret. Fork pull requests can read a public repository's Actions cache but never receive that secret.
+No names, e-mail addresses, or user, device or controller identifiers are published, hashed or otherwise. `tests/export-check.mjs` enforces this for the Mixpanel builder. If that builder runs, its per-day event cache is keyed-hashed and encrypted (AES-256-GCM) with a key derived from the Mixpanel secret, which fork pull requests never receive.
 
 ## Network cards
 

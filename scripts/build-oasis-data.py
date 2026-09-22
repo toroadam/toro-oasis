@@ -163,6 +163,31 @@ def build_kpis(raw):
     }
 
 
+MIN_PLACE_EVENTS = 10  # published data is public: sparse places are shown at their region instead
+
+
+def fold_sparse(activity, events, cities):
+    """Move places with fewer than MIN_PLACE_EVENTS events to a region-level point (their
+    region's precise places' centroid is not used; the region label and imprecise flag are)."""
+    total = defaultdict(int)
+    for (h, c), n in activity.items(): total[c] += n
+    for _, c, _ in events: total[c] += 1
+    by_region = defaultdict(list)
+    for i, c in enumerate(cities): by_region[c[3]].append(i)
+    target, out, index = {}, [], {}
+    for i, c in enumerate(cities):
+        if c[4] and total[i] >= MIN_PLACE_EVENTS: key, row = ('p', i), c
+        else:
+            members = by_region[c[3]]
+            lat = sum(cities[j][0] for j in members) / len(members); lon = sum(cities[j][1] for j in members) / len(members)
+            key, row = ('r', c[3]), [round(lat, 3), round(lon, 3), c[3], c[3], 0]
+        if key not in index: index[key] = len(out); out.append(row)
+        target[i] = index[key]
+    folded = defaultdict(int)
+    for (h, c), n in activity.items(): folded[(h, target[c])] += n
+    return folded, [[s, target[c], k] for s, c, k in events], out
+
+
 def build_real(raw, gaz):
     raw = Path(raw)
     hours, hourly = insights_rows(raw / 'app_open_hourly_region.json')
@@ -221,6 +246,7 @@ def build_real(raw, gaz):
             t = datetime.fromisoformat(r[0]).replace(tzinfo=timezone.utc)
             events.append([int((t - start).total_seconds()), cid, KIND['watering']])
     events.sort()
+    activity, events, cities = fold_sparse(activity, events, cities)
     return {
         'source': 'mixpanel', 'project': 'Oasis Mobile',
         'start': start.isoformat().replace('+00:00', 'Z'), 'hours': len(stamps),
@@ -301,6 +327,8 @@ def main():
     print(f"{args.out}: {len(data['cities'])} places, {sum(a[2] for a in data['activity'])} app opens, "
           f"events added={kinds[0]} server_error={kinds[1]} cancelled={kinds[2]}")
     if data['skipped']: print('skipped:', data['skipped'])
+    del data['skipped']  # diagnostics only; not published
+    json.dump(data, open(args.out, 'w'), separators=(',', ':'))
 
 
 if __name__ == '__main__':

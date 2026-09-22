@@ -6,8 +6,7 @@ dist/
 playwright-report/
 test-results/
 
-# Real Mixpanel-derived data stays local. Only the synthetic sample is committed.
-public/data/oasis.json
+# The published 30-day snapshot (public/data/oasis.json) is committed; raw exports are not.
 data/raw/
 data/gazetteer.json
 .env.local
