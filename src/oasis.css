@@ -1,0 +1,103 @@
+@import '@fontsource-variable/golos-text';
+
+/* Toro Oasis theme over the exploration shell. Brand tokens follow the Oasis design
+   system: brand #e11837, positive #42ce11, neutrals #f5f7f8 / #d9dfe2 / #9aa6ab / #646e73. */
+:root{--toro:#e11837;--toro-soft:#e1183726;--ink:#f5f7f8;--muted:#9aa6ab;--line:#d9dfe21f;font-family:'Golos Text Variable',Arial,sans-serif}
+body .exploration{--accent:var(--toro);font-family:'Golos Text Variable',Arial,sans-serif;color:var(--ink);background:#05070a}
+body .exploration .veil{background:linear-gradient(90deg,#05070acc,transparent 55%),linear-gradient(0deg,#05070ae6,transparent 28%)}
+body .exploration .ex-copy .eyebrow{color:var(--toro);font-weight:600;letter-spacing:2.6px}
+body .exploration .ex-copy h1{font-weight:500;letter-spacing:-2.6px}
+body .exploration .ex-copy p{color:#b9c2c6}
+body .exploration .ex-readout strong{font-weight:400;font-variant-numeric:tabular-nums}
+body .exploration .ex-readout span{color:var(--muted);letter-spacing:1px}
+body .exploration .ex-chapters button,body .exploration .ex-play,body .exploration .ex-extra button,body .exploration .ex-close,.oasis-speed{font:inherit;font-size:12px;color:#c3cbcf;background:#0d1216b0;border:1px solid #d9dfe22e;border-radius:30px;padding:11px 18px;min-height:42px;cursor:pointer}
+body .exploration .ex-extra button{font-size:22px;padding:8px}
+body .exploration .ex-chapters button[aria-pressed=true],body .exploration .ex-play{background:var(--toro-soft);border-color:#e11837b0;color:#fff}
+body .exploration .ex-play[aria-pressed=true]{background:var(--toro);border-color:var(--toro)}
+body .exploration .ex-dock{border-top-color:var(--line)}
+body .exploration .ex-dock button:hover{background:#e1183740}
+body .exploration .ex-range-row input{accent-color:var(--toro);-webkit-appearance:none;appearance:none;background:transparent}
+.ex-range-row input::-webkit-slider-runnable-track{height:3px;border-radius:3px;background:linear-gradient(90deg,var(--toro) var(--p,0%),#d9dfe233 var(--p,0%))}
+.ex-range-row input::-moz-range-track{height:3px;border-radius:3px;background:linear-gradient(90deg,var(--toro) var(--p,0%),#d9dfe233 var(--p,0%))}
+.ex-range-row input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5.5px;border-radius:50%;background:#fff;border:3px solid var(--toro);box-shadow:0 0 0 5px #e1183733}
+.ex-range-row input::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#fff;border:3px solid var(--toro)}
+.ex-dock-top{flex-wrap:wrap}.ex-dock-top>.oasis-speed{margin-left:auto;margin-right:-10px}
+body .exploration .ex-dialog{background:#0b0f13;border-color:#d9dfe233}
+body .exploration .ex-dialog a{color:#ff8a9b}
+body .exploration .ex-dialog code{font-size:12px;color:#f5f7f8;background:#ffffff12;padding:1px 5px;border-radius:4px}
+body .exploration .ex-detail{background:#0b0f13ee;border-color:#d9dfe22e;border-radius:4px}
+body .exploration .ex-detail .eyebrow{font-size:9px;letter-spacing:1.6px;color:var(--muted)}
+body .exploration .ex-detail h2{font-weight:600;margin:8px 0 0}
+.oasis-region{margin:2px 0 14px!important;color:var(--muted)!important}
+.oasis-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:0 0 14px}.oasis-stats dt{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}.oasis-stats dd{margin:2px 0 0;font-size:20px;font-variant-numeric:tabular-nums}
+.oasis-caption{font-size:10px!important;margin:6px 0 0!important;color:var(--muted)!important}
+
+/* Header: Toro badge + Oasis name. */
+body .world-shell .site-header.global-header{border-bottom-color:var(--line)}
+body .world-shell .site-header .wordmark{gap:12px;font-size:26px;letter-spacing:-.6px;font-weight:600}
+.wordmark img{height:28px;width:auto;display:block}
+.oasis-badge{font-size:9px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#ffb020;border:1px solid #ffb02066;border-radius:4px;padding:4px 7px;margin-left:4px}
+body .world-shell .site-header.global-header nav>a.nav-active{color:var(--ink);position:relative}
+body .world-shell .site-header.global-header nav>a.nav-active:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--toro);margin-right:8px;box-shadow:0 0 0 0 #e1183799;animation:oasis-live 1.8s infinite}
+.creator-link strong{color:#dfe5e8}
+@keyframes oasis-live{70%{box-shadow:0 0 0 7px #e1183700}100%{box-shadow:0 0 0 0 #e1183700}}
+
+/* Legend chips double as layer toggles and running counters. */
+body .exploration .ex-legend{flex-wrap:wrap;gap:8px}
+.oasis-chip{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#c3cbcf;border:1px solid #d9dfe224;border-radius:30px;padding:6px 12px;min-height:32px;background:#0d1216a0}
+.oasis-chip i{width:8px;height:8px;border-radius:50%;background:var(--chip);box-shadow:0 0 10px var(--chip)}
+.oasis-chip b{font-weight:500;color:#fff;font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
+.oasis-chip[aria-pressed=false]{opacity:.42}.oasis-chip[aria-pressed=false] i{box-shadow:none}
+
+/* Live event feed. */
+.oasis-feed{position:absolute;right:5%;top:250px;width:270px;margin:0;padding:0;list-style:none;display:grid;gap:6px;pointer-events:none}
+.oasis-feed li{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;padding:9px 12px;background:#0b0f13cc;border:1px solid #d9dfe21c;border-left:3px solid var(--chip);border-radius:4px;backdrop-filter:blur(12px);animation:oasis-in .5s cubic-bezier(.16,1,.3,1)}
+.oasis-feed li:nth-child(n+4){opacity:.55}.oasis-feed li:nth-child(5){opacity:.3}
+.oasis-feed i{width:8px;height:8px;border-radius:50%;background:var(--chip);box-shadow:0 0 12px var(--chip)}
+.oasis-feed strong{display:block;font-size:11px;font-weight:600}.oasis-feed em{display:block;font-style:normal;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.oasis-feed time{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+@keyframes oasis-in{from{opacity:0;transform:translateX(14px)}}
+.oasis-tip{position:fixed;left:0;top:0;z-index:40;pointer-events:none;font-size:11px;color:#fff;background:#0b0f13ee;border:1px solid #e1183777;border-radius:4px;padding:6px 9px;white-space:nowrap}
+@media(max-width:1100px){.oasis-feed{display:none}}
+@media(max-width:760px){.oasis-chip{font-size:9px;padding:4px 9px;min-height:28px}.oasis-speed{font-size:10px;padding:8px 11px;min-height:36px}.wordmark img{height:22px}body .world-shell .site-header .wordmark{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.oasis-feed li,.nav-active:before{animation:none!important}}
+@media(max-width:900px){body .world-shell .desktop-creator{display:none}}
+
+/* Right column: network cards (default) and the city panel share one slot. */
+body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
+.oasis-kpis{position:absolute;top:236px;right:5%;width:292px;display:grid;grid-template-columns:1fr 1fr;gap:8px;animation:oasis-in .5s cubic-bezier(.16,1,.3,1)}
+.oasis-kpis header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--muted);padding:0 2px 2px}
+.oasis-kpis header .eyebrow{color:var(--toro);font-weight:600;letter-spacing:2px}
+.oasis-kpi{display:grid;gap:4px;align-content:start;min-height:104px;padding:14px;background:#0b0f13d9;border:1px solid #d9dfe21f;border-radius:4px;backdrop-filter:blur(14px)}
+.oasis-kpi span{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.oasis-kpi strong{font-size:27px;font-weight:500;letter-spacing:-.8px;font-variant-numeric:tabular-nums;line-height:1.1}
+.oasis-kpi small{font-size:10px;line-height:1.35;color:#7f8a8f}
+.oasis-meter{display:block;height:3px;border-radius:3px;background:#d9dfe224;overflow:hidden}.oasis-meter b{display:block;height:100%;background:#42ce11}
+.oasis-live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--toro);margin-right:6px;animation:oasis-live 1.8s infinite}
+.oasis-kpis[hidden]{display:none}
+.oasis-feed{top:470px;width:292px;pointer-events:auto}
+.oasis-feed li{padding:0}
+.oasis-feed li button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-radius:4px}
+.oasis-feed li button:hover{background:#ffffff0d}.oasis-feed li button:focus-visible{outline:2px solid var(--toro);outline-offset:2px}
+@media(max-height:900px){.oasis-feed li:nth-child(n+4){display:none}}
+@media(max-height:780px){.oasis-feed{display:none}}
+
+/* Replay / Live switch, bottom left of the dock. */
+.oasis-mode{display:inline-flex;padding:3px;border:1px solid #d9dfe22e;border-radius:30px;background:#0d1216b0;margin-right:6px}
+.oasis-mode button{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#aab4b8;padding:8px 14px;border-radius:30px;min-height:34px}
+.oasis-mode button[aria-pressed=true]{background:#f5f7f81a;color:#fff}
+.oasis-mode button[data-mode=live] i{width:7px;height:7px;border-radius:50%;background:#646e73}
+.oasis-mode button[data-mode=live][aria-pressed=true] i{background:var(--toro);animation:oasis-live 1.8s infinite}
+.oasis-mode button:disabled{opacity:.4;cursor:not-allowed}
+.ex-dock-top>.ex-chapters{margin-right:auto}
+.oasis-is-live .ex-play,.oasis-is-live .oasis-speed{display:none!important}
+.oasis-live-status{flex:1;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Zoom out: appears only when zoomed in tight, just above the timeline. */
+.oasis-zoomout{position:absolute;left:50%;bottom:198px;transform:translateX(-50%);z-index:8;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#fff;background:#0b0f13e6;border:1px solid #d9dfe240;border-radius:30px;padding:10px 18px;min-height:40px;backdrop-filter:blur(12px);animation:oasis-pop .35s cubic-bezier(.16,1,.3,1)}
+.oasis-zoomout span{font-size:17px;line-height:1}.oasis-zoomout:hover{border-color:var(--toro);background:#e1183733}
+.oasis-zoomout[hidden]{display:none}
+@keyframes oasis-pop{from{opacity:0;transform:translate(-50%,8px)}}
+@media(max-width:1100px){body .exploration .ex-detail,.oasis-kpis{top:220px;width:250px}.oasis-kpi strong{font-size:22px}}
+@media(max-width:760px){.oasis-kpis{position:static;width:auto;animation:none}.oasis-zoomout{bottom:calc(var(--mobile-peek,260px) + 14px)}.oasis-mode button{font-size:10px;padding:6px 10px;min-height:30px}}
+@media(prefers-reduced-motion:reduce){.oasis-kpis,.oasis-zoomout,.oasis-live-dot{animation:none!important}}

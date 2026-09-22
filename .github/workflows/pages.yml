@@ -1,0 +1,87 @@
+name: Build and deploy to GitHub Pages
+
+# Hourly: pull the latest Oasis analytics from Mixpanel, rebuild the site, deploy.
+# Real data is built here and shipped only inside the Pages artifact; it is never
+# committed. Without the MIXPANEL_* secrets the site deploys with the synthetic sample.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MIXPANEL_SERVICE_ACCOUNT: ${{ secrets.MIXPANEL_SERVICE_ACCOUNT }}
+      MIXPANEL_SERVICE_SECRET: ${{ secrets.MIXPANEL_SERVICE_SECRET }}
+      OASIS_INTERNAL_PLACES: ${{ secrets.OASIS_INTERNAL_PLACES }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      - name: Cache GeoNames
+        if: env.MIXPANEL_SERVICE_ACCOUNT != ''
+        uses: actions/cache@v4
+        with:
+          path: .geonames
+          key: geonames-v1
+      - name: Build place lookup
+        if: env.MIXPANEL_SERVICE_ACCOUNT != ''
+        run: |
+          mkdir -p .geonames && cd .geonames
+          [ -f cities1000.txt ] || { curl -sSfLO https://download.geonames.org/export/dump/cities1000.zip && unzip -oq cities1000.zip && rm cities1000.zip; }
+          [ -f admin1CodesASCII.txt ] || curl -sSfLO https://download.geonames.org/export/dump/admin1CodesASCII.txt
+          [ -f countryInfo.txt ] || curl -sSfLO https://download.geonames.org/export/dump/countryInfo.txt
+          cd .. && python3 scripts/build-oasis-data.py --geonames .geonames --gazetteer data/gazetteer.json --gazetteer-only
+
+      - name: Restore event cache
+        if: env.MIXPANEL_SERVICE_ACCOUNT != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: data/cache
+          key: shards-${{ github.run_id }}
+          restore-keys: shards-
+      - name: Build data from Mixpanel
+        if: env.MIXPANEL_SERVICE_ACCOUNT != ''
+        run: node scripts/build-from-export.mjs
+      - name: Save event cache
+        if: env.MIXPANEL_SERVICE_ACCOUNT != ''
+        uses: actions/cache/save@v4
+        with:
+          path: data/cache
+          key: shards-${{ github.run_id }}
+
+      - name: Build site
+        run: npm run build
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

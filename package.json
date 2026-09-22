@@ -1,0 +1,37 @@
+{
+  "name": "toro-oasis-globe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node tests/text-transition-check.mjs && node tests/live-check.mjs && node tests/export-check.mjs",
+    "test:stars": "node tests/starfield-check.mjs",
+    "data": "node scripts/build-from-export.mjs",
+    "data:sample": "python3 scripts/build-oasis-data.py --synthetic"
+  },
+  "dependencies": {
+    "@fontsource-variable/golos-text": "^5.3.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "vite": "^7.1.0"
+  },
+  "description": "Toro Oasis: thirty days of Oasis app activity replayed on an interactive Three.js globe.",
+  "license": "MIT",
+  "author": "The Toro Company",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "keywords": [
+    "threejs",
+    "globe",
+    "toro",
+    "oasis",
+    "irrigation",
+    "mixpanel"
+  ]
+}
