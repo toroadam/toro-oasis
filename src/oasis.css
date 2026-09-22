@@ -109,3 +109,4 @@ body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
 @media(min-width:1101px){body .exploration .ex-extra{right:calc(5% + 308px)}}
 .ex-dock>.oasis-zoomout{bottom:auto;top:-58px}
 @media(max-width:1440px){.oasis-chip{font-size:10px;padding:5px 10px;gap:6px}body .exploration .ex-legend{gap:6px}}
+.oasis-feed li{display:block}

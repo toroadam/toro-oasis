@@ -1,7 +1,7 @@
 import { mobileLayout } from './mobile-layout.js';
 import './site-header.css';
 import { arrowUpRight } from './ui-icons.js';
-const links=[['planet',import.meta.env.BASE_URL,'Live network']];
+const links=[];
 const creator=`<span class="creator-link">Oasis Mobile · <strong>Last 30 days</strong></span>`;
 export function siteHeader(current){
  queueMicrotask(()=>{
