@@ -116,7 +116,7 @@ play.onclick=()=>setPlaying(!layer.playing);
 range.oninput=e=>{layer.seek(+e.target.value*data.duration);feed.replaceChildren();};
 const speed=document.createElement('button');speed.className='oasis-speed';speed.title='Replay speed';
 // Six months of data: default to half a day per second (about six minutes end to end).
-const speeds=[[12*3600,'12 hr/s'],[24*3600,'1 day/s'],[3600,'1 hr/s']];let speedIndex=0;speed.textContent=speeds[0][1];layer.setSpeed(speeds[0][0]);
+const speeds=[[3600,'1 hr/s'],[6*3600,'6 hr/s'],[12*3600,'12 hr/s'],[24*3600,'1 day/s']];let speedIndex=2;speed.textContent=speeds[speedIndex][1];layer.setSpeed(speeds[speedIndex][0]);
 speed.onclick=()=>{speedIndex=(speedIndex+1)%speeds.length;layer.setSpeed(speeds[speedIndex][0]);speed.textContent=speeds[speedIndex][1];};
 play.before(speed);
 document.querySelectorAll('.oasis-chip').forEach(b=>{b.onclick=()=>{const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));chips[b.dataset.kind]=on;layer.setVisible(b.dataset.kind,on);};});
