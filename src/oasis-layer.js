@@ -13,7 +13,7 @@ export const KINDS = [
  {id:'cancelled',label:'Setup cancelled',color:'#9aa6ab'},
  {id:'watering',label:'Watering',color:'#3079f0'},
 ];
-const OUTCOMES = ['added', 'error', 'cancelled', 'watering']; // replay event kinds 0-3
+const OUTCOMES = ['added', 'error', 'cancelled', 'watering', 'signup']; // replay event kinds 0-4 (signup: new customer)
 const HQ = {lat:44.8408, lon:-93.2983}; // The Toro Company, Bloomington, Minnesota
 const RIPPLES = 2048, BEAMS = 192, ARCS = 18, ARC_POINTS = 72;
 const colors = KINDS.map(k => new THREE.Color(k.color));
@@ -26,11 +26,13 @@ export function subsolar(date) {
 
 export function prepare(data) {
  const hours = data.hours, buckets = Array.from({length:hours}, () => []), prefix = new Float64Array(hours + 1);
- const days = Math.ceil(hours / 24), totals = data.cities.map(() => ({opens:0, added:0, error:0, cancelled:0, watering:0, daily:new Array(days).fill(0)}));
- for (const [h, c, n] of data.activity) {buckets[h]?.push([c, n]); totals[c].opens += n; totals[c].daily[Math.floor(h / 24)] += n;}
+ const days = Math.ceil(hours / 24), totals = data.cities.map(() => ({opens:0, added:0, error:0, cancelled:0, watering:0, signup:0, daily:new Array(days).fill(0)}));
+ // When each city first shows activity; in Replay its marker appears (with a flash) at that moment.
+ const born = new Float64Array(data.cities.length).fill(Infinity);
+ for (const [h, c, n] of data.activity) {buckets[h]?.push([c, n]); totals[c].opens += n; totals[c].daily[Math.floor(h / 24)] += n; born[c] = Math.min(born[c], h * 3600);}
  for (let h = 0; h < hours; h++) prefix[h + 1] = prefix[h] + buckets[h].reduce((s, [, n]) => s + n, 0);
- for (const [, c, k] of data.events) totals[c][OUTCOMES[k]]++;
- return {...data, startDate:new Date(data.start), buckets, prefix, totals, duration:hours * 3600};
+ for (const [at, c, k] of data.events) {totals[c][OUTCOMES[k]]++; born[c] = Math.min(born[c], at);}
+ return {...data, startDate:new Date(data.start), buckets, prefix, totals, born, duration:hours * 3600};
 }
 
 function oriented(normal) {return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);}
@@ -111,10 +113,14 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   const markerPosition = new THREE.BufferAttribute(new Float32Array(capacity * 3), 3), heat = new Float32Array(capacity);
   const heatAttribute = new THREE.BufferAttribute(heat, 1).setUsage(THREE.DynamicDrawUsage);
   const sizeAttribute = new THREE.BufferAttribute(new Float32Array(capacity), 1), preciseAttribute = new THREE.BufferAttribute(new Float32Array(capacity), 1);
+  const bornAttribute = new THREE.BufferAttribute(new Float32Array(capacity).fill(-1e9), 1), flashAttribute = new THREE.BufferAttribute(new Float32Array(capacity).fill(-1e9), 1).setUsage(THREE.DynamicDrawUsage);
+  const flashLength = {value:3600}, grow = {value:1};
   const sizeFor = t => 2.2 + Math.log10(1 + t.opens) * 1.7;
-  positions.forEach((p, i) => {markerPosition.setXYZ(i, p.x, p.y, p.z); sizeAttribute.array[i] = sizeFor(data.totals[i]); preciseAttribute.array[i] = data.cities[i][4];});
+  positions.forEach((p, i) => {markerPosition.setXYZ(i, p.x, p.y, p.z); sizeAttribute.array[i] = sizeFor(data.totals[i]); preciseAttribute.array[i] = data.cities[i][4];
+   bornAttribute.array[i] = Number.isFinite(data.born[i]) ? data.born[i] : -1e9; flashAttribute.array[i] = bornAttribute.array[i];});
   markerGeometry.setAttribute('position', markerPosition); markerGeometry.setAttribute('aHeat', heatAttribute);
   markerGeometry.setAttribute('aSize', sizeAttribute); markerGeometry.setAttribute('aPrecise', preciseAttribute);
+  markerGeometry.setAttribute('aBorn', bornAttribute); markerGeometry.setAttribute('aFlash', flashAttribute);
   markerGeometry.setDrawRange(0, positions.length);
   const byCoordinate = new Map(data.cities.map((c, i) => [`${c[0].toFixed(2)}|${c[1].toFixed(2)}`, i]));
   function addCity(lat, lon, name, region, precise) {
@@ -125,21 +131,24 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    data.cities.push([lat, lon, name, region, precise ? 1 : 0]);
    data.totals.push({opens:0, added:0, error:0, cancelled:0, daily:new Array(data.totals[0]?.daily.length ?? 30).fill(0)});
    markerPosition.setXYZ(i, positions[i].x, positions[i].y, positions[i].z); sizeAttribute.array[i] = 2.2; preciseAttribute.array[i] = precise ? 1 : 0;
-   markerPosition.needsUpdate = sizeAttribute.needsUpdate = preciseAttribute.needsUpdate = true;
+   bornAttribute.array[i] = flashAttribute.array[i] = -1e9;
+   markerPosition.needsUpdate = sizeAttribute.needsUpdate = preciseAttribute.needsUpdate = bornAttribute.needsUpdate = flashAttribute.needsUpdate = true;
    markerGeometry.setDrawRange(0, i + 1); byCoordinate.set(key, i); return i;
   }
   const pixel = {value:Math.min(devicePixelRatio, 1.75)}, center = {value:new THREE.Vector3()}, selected = {value:-1};
   const markerMaterial = new THREE.ShaderMaterial({
-   uniforms:{uPixel:pixel, uCenter:center, uSelected:selected, uOn:{value:1}},
-   vertexShader:`attribute float aHeat,aSize,aPrecise;uniform float uPixel,uSelected;uniform vec3 uCenter;varying float vHeat,vFade,vPrecise,vSel;
+   uniforms:{uPixel:pixel, uCenter:center, uSelected:selected, uOn:{value:1}, uTime:time, uFlashLength:flashLength, uGrow:grow},
+   vertexShader:`attribute float aHeat,aSize,aPrecise,aBorn,aFlash;uniform float uPixel,uSelected,uTime,uFlashLength,uGrow;uniform vec3 uCenter;varying float vHeat,vFade,vPrecise,vSel,vFlash;
     void main(){vec4 w=modelMatrix*vec4(position,1.);vec3 n=normalize(w.xyz-uCenter);vFade=smoothstep(.02,.28,dot(n,normalize(cameraPosition-w.xyz)));
      vHeat=aHeat;vPrecise=aPrecise;vSel=float(gl_VertexID)==uSelected?1.:0.;
-     gl_PointSize=(aSize*(.8+.4*aPrecise)+aHeat*7.+vSel*9.)*uPixel*(10.5/max(length(cameraPosition-uCenter),3.));
+     float since=uTime-aFlash;vFlash=since>=0.?exp(-since/uFlashLength):0.;
+     if(uGrow>.5&&uTime<aBorn)vFade=0.;
+     gl_PointSize=(aSize*(.8+.4*aPrecise)+aHeat*7.+vSel*9.+vFlash*12.)*uPixel*(10.5/max(length(cameraPosition-uCenter),3.));
      gl_Position=projectionMatrix*viewMatrix*w;}`,
-   fragmentShader:`uniform float uOn;varying float vHeat,vFade,vPrecise,vSel;
+   fragmentShader:`uniform float uOn;varying float vHeat,vFade,vPrecise,vSel,vFlash;
     void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;float glow=pow(1.-d,2.2);float core=smoothstep(.42,.2,d);
-     vec3 base=mix(vec3(1.,.1,.25),vec3(1.,.85,.85),clamp(vHeat*.7,0.,1.));base=mix(base,vec3(1.),vSel);
-     float a=(glow*(.45+.55*vPrecise)+core*(.95+vHeat*.5))*vFade*uOn;gl_FragColor=vec4(base*a,a);}`,
+     vec3 base=mix(vec3(1.,.1,.25),vec3(1.,.85,.85),clamp(vHeat*.7,0.,1.));base=mix(base,vec3(1.),max(vSel,vFlash));
+     float a=(glow*(.45+.55*vPrecise)+core*(.95+vHeat*.5)+vFlash*glow*1.2)*vFade*uOn;gl_FragColor=vec4(base*a,a);}`,
    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
   });
   const markers = new THREE.Points(markerGeometry, markerMaterial); markers.frustumCulled = false; markers.renderOrder = 4; group.add(markers);
@@ -191,7 +200,8 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   // come from a queue fed by the live poller instead of the replay dataset.
   let now = 0, playing = true, speed = 3600, nextHour = 0, nextEvent = 0, live = null, liveSpeed = 1, replayAt = 0, queue = [];
   const counts = Object.fromEntries(KINDS.map(k => [k.id, 0]));
-  function clear() {birth.array.fill(-1e9); beamBirth.array.fill(-1e9); arcs.forEach(a => a.material.uniforms.uBirth.value = -1e9); heat.fill(0); dirty.ripples = dirty.beams = true;}
+  function flash(c, at) {flashAttribute.array[c] = at; flashAttribute.needsUpdate = true;}
+  function clear() {flashAttribute.array.set(bornAttribute.array); flashAttribute.needsUpdate = true;birth.array.fill(-1e9); beamBirth.array.fill(-1e9); arcs.forEach(a => a.material.uniforms.uBirth.value = -1e9); heat.fill(0); dirty.ripples = dirty.beams = true;}
   function seek(seconds) {
    now = THREE.MathUtils.clamp(seconds, 0, data.duration - 1);
    clear();
@@ -211,7 +221,9 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    }
    while (nextEvent < data.events.length && data.events[nextEvent][0] <= limit) {
     const [at, c, k] = data.events[nextEvent++], type = k + 1;
+    if (type === 5) {flash(c, at); counts.signup = (counts.signup ?? 0) + 1; onEvent?.({kind:'signup', city:c, at}); continue;}
     if (type === 4) {ripple(c, 4, at, 1, pulse * 1.6); counts.watering++; onEvent?.({kind:'watering', city:c, at}); continue;}
+    if (type === 1) flash(c, at);
     ripple(c, type, at, 1, burst); if (type < 3) beam(c, type, at, burst * 1.3); if (type === 1) arc(c, at, burst * 1.6);
     heat[c] = Math.min(2, heat[c] + (type === 1 ? 1.4 : .8));
     counts[KINDS[type].id]++; onEvent?.({kind:KINDS[type].id, city:c, at});
@@ -219,11 +231,13 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   }
   function spawnLive() {
    while (queue.length && queue[0].at <= now) {
-    const {at, city:c, kind:id} = queue.shift(), type = KINDS.findIndex(k => k.id === id);
+    const {at, city:c, kind:id} = queue.shift(), type = KINDS.findIndex(k => k.id === id); // signup: -1 (no legend kind)
     // Lifetimes are in simulation seconds, so they scale with the stream speed.
     const k = liveSpeed > 1 ? liveSpeed : 2; // true live: events are sparse, let them linger
     if (type === 0) {ripple(c, 0, at, .8, 3.5 * k); heat[c] = Math.min(2, heat[c] + .35); continue;}
     if (type === 4) {ripple(c, 4, at, 1, 5 * k); onEvent?.({kind:id, city:c, at}); continue;}
+    if (type < 0) {flash(c, at); onEvent?.({kind:id, city:c, at}); continue;}
+    if (type === 1) flash(c, at);
     ripple(c, type, at, 1, 7 * k); if (type < 3) beam(c, type, at, 10 * k); if (type === 1) arc(c, at, 12 * k);
     heat[c] = Math.min(2, heat[c] + (type === 1 ? 1.4 : .8));
     onEvent?.({kind:id, city:c, at});
@@ -260,6 +274,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
     if (dirty.ripples) {ripples.instanceMatrix.needsUpdate = birth.needsUpdate = kind.needsUpdate = strength.needsUpdate = life.needsUpdate = true; dirty.ripples = false;}
     if (dirty.beams) {beams.instanceMatrix.needsUpdate = beamBirth.needsUpdate = beamKind.needsUpdate = beamLife.needsUpdate = true; dirty.beams = false;}
     group.getWorldPosition(center.value);
+    flashLength.value = 1.4 * (live ? Math.max(liveSpeed, 2) : speed); grow.value = live ? 0 : 1;
     shadeMaterial.opacity += (shadeTarget - shadeMaterial.opacity) * (1 - Math.exp(-dt * 4));
     if (shadeTarget === 0 && shadeMaterial.opacity < .01) shadeMesh.visible = false;
    },

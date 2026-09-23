@@ -8,7 +8,7 @@ Oasis irrigation activity on an interactive 3D globe.
 - **Blue dots** are zones watering, started from the app (mostly test runs during setup). Scheduled watering runs on the controller and isn't in the analytics.
 - The day/night line follows the clock, so each evening wave rolls west across North America.
 
-**Replay** plays the last thirty days, at 15 minutes, 1 hour or 3 hours per second. **Live** replays the most recent two days as "today and yesterday" at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
+**Replay** plays the last thirty days, at 15 minutes, 1 hour or 3 hours per second. The network builds up as it plays: places appear the first time they're active, new customers and new controllers flash white before settling to red, and the customer and controller cards count up to today's totals. **Live** replays the most recent two days as "today and yesterday" at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
 
 Select any city, or any event in the feed, to fly there and see its thirty-day totals. When nothing is selected, the right-hand panel shows four network cards (customers, controllers, controllers added this month, share online). A **Top regions** tab next to them ranks the top five states or provinces by customers, controllers added or app activity; select one to fly there and see its totals. A **Zoom out** button appears above the timeline whenever you are zoomed in close.
 

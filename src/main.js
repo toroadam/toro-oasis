@@ -16,7 +16,7 @@ const liveView={kicker:'LIVE',title:'Oasis,<br> right now.',body:'Activity from 
 const fmt=new Intl.NumberFormat('en-US');
 const legend=KINDS.map(k=>`<button class="oasis-chip" data-kind="${k.id}" aria-pressed="true" style="--chip:${k.color}"><i></i>${k.label}<b>0</b></button>`).join('');
 const ui=shell({id:'planet',...views[0],chapters:['Network','North America','Northeast','Southwest','Australia','India'],rangeLabel:'Replay',note:'Oasis app analytics · City-level locations · Drag to rotate · Scroll to zoom · Select a city',legend,
- sources:`<p>Activity comes from Toro's <strong>Oasis</strong> app analytics. Locations are the city associated with each phone's connection, never a street address. Places with little activity are shown at their state or region instead, and are drawn dimmer.</p><p>Red pulses are app opens, placed in the hour they happened. Green beams and arcs are controllers being added. Amber marks setup errors and grey marks setups the user cancelled; they are shown separately because most unfinished setups are cancellations, not failures. Blue dots are zones watering, started from the app: mostly test runs while a controller is being set up, plus manual runs. Scheduled watering runs on the controller itself and is not shown.</p><p><strong>Network cards and globe activity</strong> count production traffic from signed-in customers only, excluding Toro staff and test accounts. Customers are everyone who has signed in since analytics began in April 2026, excluding Toro and test accounts. Controllers are every distinct controller that has connected (added, registered, reporting status or used in the app) since analytics began; controllers set up before then, or through app versions that did not record controller IDs, are not included, so the fleet is larger. Online is the share of controllers that reported being online in the last 30 days.</p><p><strong>Live</strong> streams real activity from today and yesterday, sped up so the network is always moving. The data is refreshed every hour.</p><p>Internal test traffic is excluded. No names, e-mail addresses, or user, device or controller identifiers are published. Times are UTC, and the sun position is approximate.</p><p>Globe renderer adapted from <a href="https://github.com/ethanplusai/earth-moon-solar" target="_blank" rel="noopener">Earth, Moon &amp; Solar System</a> by Ethan Rogers (MIT). Earth imagery is NASA-derived, via WebGL Earth and three-globe. The star background uses the HYG catalog (CC BY-SA 4.0). Place names from GeoNames (CC BY 4.0).</p>`});
+ sources:`<p>Activity comes from Toro's <strong>Oasis</strong> app analytics. Locations are the city associated with each phone's connection, never a street address. Places with little activity are shown at their state or region instead, and are drawn dimmer.</p><p>Red pulses are app opens, placed in the hour they happened. Green beams and arcs are controllers being added. Amber marks setup errors and grey marks setups the user cancelled; they are shown separately because most unfinished setups are cancellations, not failures. Blue dots are zones watering, started from the app: mostly test runs while a controller is being set up, plus manual runs. Scheduled watering runs on the controller itself and is not shown.</p><p><strong>In Replay</strong> the network builds up over the thirty days: each place appears the first time it is active, new customers (sign-ups) and new controllers flash white before settling to red, and the customer and controller cards count up to today's totals.</p><p><strong>Network cards and globe activity</strong> count production traffic from signed-in customers only, excluding Toro staff and test accounts. Customers are everyone who has signed in since analytics began in April 2026, excluding Toro and test accounts. Controllers are every distinct controller that has connected (added, registered, reporting status or used in the app) since analytics began; controllers set up before then, or through app versions that did not record controller IDs, are not included, so the fleet is larger. Online is the share of controllers that reported being online in the last 30 days.</p><p><strong>Live</strong> streams real activity from today and yesterday, sped up so the network is always moving. The data is refreshed every hour.</p><p>Internal test traffic is excluded. No names, e-mail addresses, or user, device or controller identifiers are published. Times are UTC, and the sun position is approximate.</p><p>Globe renderer adapted from <a href="https://github.com/ethanplusai/earth-moon-solar" target="_blank" rel="noopener">Earth, Moon &amp; Solar System</a> by Ethan Rogers (MIT). Earth imagery is NASA-derived, via WebGL Earth and three-globe. The star background uses the HYG catalog (CC BY-SA 4.0). Place names from GeoNames (CC BY 4.0).</p>`});
 
 // Elements the mobile layout moves must exist before the first await.
 const shellRoot=$('.world-shell');
@@ -60,9 +60,9 @@ function renderKpis(){
  kpis.classList.toggle('oasis-kpis-regions',kpiView==='regions');
  if($('.ex-detail').hidden)feed.hidden=kpiView==='regions'; // the leaderboard takes the feed's space
  kpis.innerHTML=`<header><div class="oasis-tabs" role="tablist"><button role="tab" data-view="network" aria-selected="${kpiView==='network'}">Network</button><button role="tab" data-view="regions" aria-selected="${kpiView==='regions'}">Top regions</button></div><span>${asOf}</span></header>
-  ${kpiView==='regions'?renderRegions():`<div class="oasis-kpi"><span>Customers</span><strong>${fmt.format(k.users)}</strong><small>${k.usersNote??`App users since ${k.usersSince}`}</small></div>
-  <div class="oasis-kpi"><span>Controllers</span><strong>${fmt.format(k.controllers)}</strong><small>${k.controllersNote??`Added through the app since ${k.controllersSince}`}</small></div>
-  <div class="oasis-kpi"><span>New this month</span><strong style="color:#42ce11">${fmt.format(k.addedMonth)}</strong><small>Controllers added in ${k.month}</small></div>
+  ${kpiView==='regions'?renderRegions():`<div class="oasis-kpi"><span>Customers</span><strong data-kpi="users">${fmt.format(k.users)}</strong><small>${k.usersNote??`App users since ${k.usersSince}`}</small></div>
+  <div class="oasis-kpi"><span>Controllers</span><strong data-kpi="controllers">${fmt.format(k.controllers)}</strong><small>${k.controllersNote??`Added through the app since ${k.controllersSince}`}</small></div>
+  <div class="oasis-kpi"><span>New this month</span><strong style="color:#42ce11" data-kpi="month">${fmt.format(k.addedMonth)}</strong><small data-kpi="monthLabel">Controllers added in ${k.month}</small></div>
   <div class="oasis-kpi"><span>Online now</span><strong>${pct}</strong><i class="oasis-meter"><b style="width:${(k.online??0)*100}%"></b></i><small>${k.onlineNote?`Of ${fmt.format(k.reporting)} reporting, ${k.onlineNote.replace('seen online in the ','')}`:`Of ${fmt.format(k.reporting)} at last status report`}</small></div>`}`;
 }
 renderKpis();
@@ -74,11 +74,11 @@ kpis.addEventListener('click',e=>{
 });
 
 // Feed of controller outcomes. Each entry flies to its city.
-const verb={added:'Controller added',error:'Setup error',cancelled:'Setup cancelled'};
+const verb={added:'Controller added',error:'Setup error',cancelled:'Setup cancelled',signup:'New customer'};
 const chips=Object.fromEntries(KINDS.map(k=>[k.id,true]));
 function pushFeed({kind,city,at}){
  if(!chips[kind]||kind==='activity'||kind==='watering')return; // the feed is for controller outcomes
- const item=document.createElement('li');item.style.setProperty('--chip',KINDS.find(k=>k.id===kind).color);
+ const item=document.createElement('li');item.style.setProperty('--chip',KINDS.find(k=>k.id===kind)?.color??'#ffffff');
  item.innerHTML=`<button><i></i><span><strong>${verb[kind]}</strong><em>${place(city)}</em></span><time>${hhmm(new Date(data.startDate.getTime()+at*1000))}</time></button>`;
  item.querySelector('button').onclick=()=>focusCity(city);
  feed.prepend(item);while(feed.children.length>5)feed.lastChild.remove();
@@ -134,7 +134,7 @@ data.recent??=(()=>{const from=(data.hours-48)*3600,end=data.hours*3600,ev=[];le
  for(const [h,c,n] of data.activity)if(h*3600>=from)for(let i=0;i<n;i++)ev.push([h*3600+Math.floor(rnd()*3600),c,0]);
  for(const [s,c,k] of data.events)if(s>=from)ev.push([s,c,k+1]);
  return {start:from,end,events:ev.sort((a,b)=>a[0]-b[0])};})();
-const recent=data.recent.events.map(([s,city,k])=>({t:base+s*1000,city,kind:KINDS[k].id}));
+const recent=data.recent.events.map(([s,city,k])=>({t:base+s*1000,city,kind:KINDS[k]?.id??'signup'}));
 const stream={t0:0,from:base+data.recent.start*1000,to:base+data.recent.end*1000,next:0,counts:null,todayOpens:0};
 const streamClock=()=>stream.from+(performance.now()-stream.t0)*STREAM;
 const endDay=new Date(stream.to).toISOString().slice(0,10);
@@ -177,6 +177,22 @@ function setMode(mode){
 document.querySelectorAll('.oasis-mode button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 
 const ago=ms=>{const m=Math.max(0,Math.round(ms/60000));return m<1?'just now':m<60?`${m} min ago`:`${Math.round(m/60)} h ago`;};
+// Replay: the cards count up. Totals are as of the snapshot's end, so at replay time t each
+// card is its total minus what arrives after t. "New this month" counts adds in t's month so far.
+const sortedAt=k=>data.events.filter(e=>e[2]===k).map(e=>e[0]).sort((a,b)=>a-b);
+const signupAt=sortedAt(4),addedAt=sortedAt(0);
+const countUpTo=(arr,t)=>{let lo=0,hi=arr.length;while(lo<hi){const m=(lo+hi)>>1;if(arr[m]<=t)lo=m+1;else hi=m;}return lo;};
+function growKpis(){
+ if(kpiView!=='network'||kpis.hidden)return;
+ const t=layer.time,k=data.kpis,set=(id,v)=>{const el=kpis.querySelector(`[data-kpi="${id}"]`);if(el&&el.textContent!==v)el.textContent=v;};
+ if(live){set('users',fmt.format(k.users));set('controllers',fmt.format(k.controllers));set('month',fmt.format(liveKpis?.addedMonth??k.addedMonth));set('monthLabel',`Controllers added in ${liveKpis?.month??k.month}`);return;}
+ set('users',fmt.format(k.users-(signupAt.length-countUpTo(signupAt,t))));
+ set('controllers',fmt.format(k.controllers-(addedAt.length-countUpTo(addedAt,t))));
+ const d=new Date(data.startDate.getTime()+t*1000),monthStart=Math.max(0,(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)-data.startDate.getTime())/1000);
+ const month=d.toLocaleString('en-US',{month:'long',timeZone:'UTC'}),partial=monthStart===0&&data.startDate.getUTCDate()>1;
+ set('month',fmt.format(countUpTo(addedAt,t)-countUpTo(addedAt,monthStart-1)));
+ set('monthLabel',`Controllers added in ${month}${partial?` (from ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})})`:''}`);
+}
 let lastUi=0;
 function frame(t){
  requestAnimationFrame(frame);
@@ -196,6 +212,7 @@ function frame(t){
   ui.readout(clock(date)+' UTC',`${data.project.toUpperCase()} · ${fmt.format(Math.round(data.prefix[Math.min(data.hours,hour+1)]-data.prefix[Math.max(0,hour-23)]))} OPENS IN THE LAST 24 H`);
   if(document.activeElement!==range)range.value=layer.time/data.duration;range.style.setProperty('--p',(layer.time/data.duration*100).toFixed(2)+'%');
  }
+ growKpis();
  const counts=live?(liveKind==='stream'?stream.counts:liveToday)??{}:layer.counts;
  for(const k of KINDS)document.querySelector(`.oasis-chip[data-kind="${k.id}"] b`).textContent=fmt.format(Math.round(counts[k.id]??0));
 }

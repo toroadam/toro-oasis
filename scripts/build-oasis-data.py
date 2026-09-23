@@ -37,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 # Internal test traffic, as "Region|City;Region|City" in OASIS_INTERNAL_PLACES (kept out of the repo).
 _internal_raw = os.environ.get('OASIS_INTERNAL_PLACES', '')
-KIND = {'added': 0, 'server_error': 1, 'cancelled': 2, 'watering': 3}
+KIND = {'added': 0, 'server_error': 1, 'cancelled': 2, 'watering': 3, 'signup': 4}
 
 
 def norm(s):
@@ -197,13 +197,13 @@ def build_regions(activity, events, cities, hours, customers_file):
     agg = {}
     def row(c):
         name = cities[c][3] or cities[c][2]
-        return agg.setdefault(name, {'region': name, 'opens': 0, 'added': 0, 'error': 0, 'cancelled': 0, 'watering': 0,
+        return agg.setdefault(name, {'region': name, 'opens': 0, 'added': 0, 'error': 0, 'cancelled': 0, 'watering': 0, 'signup': 0,
                                      'daily': [0] * days, 'lat': 0.0, 'lon': 0.0, 'w': 0})
     for (h, c), n in activity.items():
         r = row(c); r['opens'] += n; r['daily'][h // 24] += n
         r['lat'] += cities[c][0] * n; r['lon'] += cities[c][1] * n; r['w'] += n
     for _, c, k in events:
-        r = row(c); r[['added', 'error', 'cancelled', 'watering'][k]] += 1
+        r = row(c); r[['added', 'error', 'cancelled', 'watering', 'signup'][k]] += 1
         if not r['w']: r['lat'], r['lon'] = cities[c][0], cities[c][1]
     out = []
     for r in agg.values():
@@ -272,6 +272,19 @@ def build_real(raw, gaz):
                 if cid is None: continue
                 for t, n in zip(hours_h, row[1:]):
                     for _ in range(n or 0): events.append([int((t - start).total_seconds()) + rng.randrange(3600), cid, k])
+    # New customers: registration_success unique users per hour and city (signups_hourly_city.json).
+    signups_file = raw / 'signups_hourly_city.json'
+    if signups_file.exists():
+        rng = random.Random(5)
+        series = next(iter(json.load(open(signups_file))['result']['results'].values()))
+        hours_h = [datetime.fromisoformat(h if 'T' in h else h + 'T00:00').replace(tzinfo=timezone.utc) for h in series['headers'][1:]]
+        for row in series['rows']:
+            if row[0] == '$overall' or row[0].endswith(', $overall'): continue
+            region, city = row[0].split(', ', 1)
+            cid = city_id(region, city)
+            if cid is None: continue
+            for t, n in zip(hours_h, row[1:]):
+                for _ in range(n or 0): events.append([int((t - start).total_seconds()) + rng.randrange(3600), cid, KIND['signup']])
     expanded = (('controller_add_completed.json', lambda r: 'added'),
                 ('controller_add_failed.json', lambda r: 'server_error' if r[4] == 'server_error' else 'cancelled'))
     for name, kind_of in ([] if hourly_outcomes.exists() else expanded):
