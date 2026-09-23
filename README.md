@@ -8,7 +8,7 @@ Oasis irrigation activity on an interactive 3D globe.
 - **Blue dots** are zones watering, started from the app (mostly test runs during setup). Scheduled watering runs on the controller and isn't in the analytics.
 - The day/night line follows the clock, so each evening wave rolls west across North America.
 
-**Replay** plays everything since analytics began in April 2026, at 1, 6 or 12 hours, or 1 day, per second (12 hours by default). The network builds up as it plays: places appear the first time they're active, new users and new controllers flash white before settling to red, and the cards count up to today's totals. **Live** replays the most recent two days as "today and yesterday" at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
+**Replay** plays everything since analytics began in April 2026, at 1, 6 or 12 hours, or 1 day, per second (6 hours by default). The network builds up as it plays: places appear the first time they're active, new users and new controllers flash white before settling to red, and the cards count up to today's totals. **Live** replays the most recent two days as "today and yesterday" at 120× speed, so the network is always moving. Add `?live` to the URL to open straight into Live.
 
 By default the globe **tours** itself: Network, North America, Northeast, Southwest (10 s each, no region shading), Australia and India (8 s), back to North America, then each Toro region with its states lit and its panel open, then round again. The headline shows each area's figures as of the replay clock. Picking a chapter pill, dragging, zooming or selecting a place stops the tour; the **Network** pill starts it again.
 
