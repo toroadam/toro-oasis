@@ -27,7 +27,7 @@ const zoomOut=document.createElement('button');zoomOut.className='oasis-zoomout'
 $('.ex-dock-top').insertAdjacentHTML('afterbegin','<div class="oasis-mode" role="group" aria-label="Mode"><button data-mode="replay" aria-pressed="true">Replay</button><button data-mode="live" aria-pressed="false"><i></i>Live</button></div>');
 $('.ex-range-row').insertAdjacentHTML('beforeend','<span class="oasis-live-status" hidden></span>');
 
-const scene=createScene($('#earth-canvas'),{exposure:1.22,daylight:[-.4,.32,1],homeView:[30,-96],homeOffset:.4,onInteract:()=>scene.setRotation(false)});
+const scene=createScene($('#earth-canvas'),{exposure:1.22,daylight:[-.4,.32,1],homeView:[30,-96],homeOffset:.4,onInteract:()=>{scene.setRotation(false);stopTour();}});
 scene.setReduced(reduced());bindZoom(scene);scene.setCityLights(.2);
 
 async function load(){
@@ -57,8 +57,9 @@ const TORO_REGIONS=[
  {id:'noncontiguous',name:'Noncontiguous',abbr:'NC',color:'#905e42',states:['Alaska','Hawaii']},
  {id:'canada',name:'Canada',abbr:'CA',color:'#9aa6ab',states:['British Columbia','Alberta','Saskatchewan','Manitoba','Ontario','Quebec','New Brunswick','Nova Scotia','Prince Edward Island','Newfoundland and Labrador','Yukon','Northwest Territories','Nunavut']},
 ];
+const TORO_BY_STATE=new Map(TORO_REGIONS.flatMap(g=>g.states.map(st=>[st,g.id])));
 const toroRegions=(()=>{
- const byState=new Map(TORO_REGIONS.flatMap(g=>g.states.map(st=>[st,g.id])));
+ const byState=TORO_BY_STATE;
  const groups=[...TORO_REGIONS,{id:'intl',name:'International',abbr:'INT',color:'#646e73',states:[]}].map(g=>({...g,members:[],customers:0,added:0,controller:0,opens:0,error:0,cancelled:0,watering:0,signup:0,daily:null,lat:0,lon:0,w:0}));
  const find=id=>groups.find(g=>g.id===id);
  (data.regions??[]).forEach((r,i)=>{const g=find(byState.get(r.region)??'intl');g.members.push(i);
@@ -89,6 +90,7 @@ function renderKpis(){
 renderKpis();
 kpis.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.toro||b.dataset.region)stopTour();
  if(b.dataset.view){kpiView=b.dataset.view;renderKpis();}
  else if(b.dataset.metric){regionMetric=b.dataset.metric;renderKpis();}
  else if(b.dataset.toro)focusToroRegion(b.dataset.toro);
@@ -120,7 +122,7 @@ function showCity(c){
 function hover(c,x,y){if(c<0){hoverTip.hidden=true;return;}hoverTip.hidden=false;hoverTip.textContent=`${place(c)} · ${fmt.format(data.totals[c].opens)} opens`;hoverTip.style.transform=`translate(${x+14}px,${y-10}px)`;}
 
 const layer=scene.attachLayer(oasisLayer(data,{onEvent:pushFeed,onPick:showCity,onHover:hover}));
-function focusCity(c){const [lat,lon]=data.cities[c];ui.active(-1);scene.flyTo(lat,lon,.8,2400);scene.setRotation(false);layer.select(c);showCity(c);}
+function focusCity(c){stopTour();const [lat,lon]=data.cities[c];ui.active(-1);scene.flyTo(lat,lon,.8,2400);scene.setRotation(false);layer.select(c);showCity(c);}
 let shapes=null;
 const loadShapes=()=>shapes??=fetch(import.meta.env.BASE_URL+'data/regions.geo.json').then(r=>r.ok?r.json():{}).catch(()=>({}));
 function focusRegion(i){
@@ -153,7 +155,48 @@ const speeds=[[3600,'1 hr/s'],[6*3600,'6 hr/s'],[12*3600,'12 hr/s'],[24*3600,'1 
 speed.onclick=()=>{speedIndex=(speedIndex+1)%speeds.length;layer.setSpeed(speeds[speedIndex][0]);speed.textContent=speeds[speedIndex][1];};
 play.before(speed);
 document.querySelectorAll('.oasis-chip').forEach(b=>{b.onclick=()=>{const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));chips[b.dataset.kind]=on;layer.setVisible(b.dataset.kind,on);};});
-document.querySelectorAll('[data-chapter]').forEach(b=>b.onclick=()=>{const i=+b.dataset.chapter;if(i===0)return goHome();ui.active(i);ui.copy(String(i),views[i]);scene.flyTo(views[i].lat,views[i].lon,views[i].zoom,3000);scene.setRotation(false);});
+// Chapters and the automatic tour. By default the globe tours the chapters, then each Toro
+// region, then starts again. Picking a chapter pill (or dragging, zooming, selecting a place)
+// stops the tour and stays put; the Network pill starts it again.
+const CHAPTER_AREA={1:r=>!!TORO_BY_STATE.get(r.region),2:r=>TORO_BY_STATE.get(r.region)==='northeast',3:r=>TORO_BY_STATE.get(r.region)==='southwest',
+ 4:r=>r.lat<-10&&r.lon>110,5:r=>r.lat>6&&r.lat<36&&r.lon>68&&r.lon<98};
+const CHAPTER_TORO={2:'northeast',3:'southwest'};
+// Area figures for the headline, as of the replay clock so they agree with the cards.
+function areaStats(test){
+ const t=layer.time,inArea=new Set((data.regions??[]).filter(test).map(r=>r.region));if(!inArea.size)return '';
+ const cityIn=c=>inArea.has(data.cities[c][3]||data.cities[c][2]),byState=new Map();let opens=0,controllers=0;
+ for(const [h,c,n] of data.activity)if(h*3600<=t&&cityIn(c))opens+=n;
+ for(const [at,c,k] of data.events)if(k===5&&at<=t&&cityIn(c)){controllers++;const st=data.cities[c][3];byState.set(st,(byState.get(st)??0)+1);}
+ const top=[...byState].sort((a,b)=>b[1]-a[1])[0],when=new Date(data.startDate.getTime()+t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+ return `By ${when}: ${fmt.format(controllers)} ${controllers===1?'controller':'controllers'} located and ${fmt.format(opens)} app opens${top&&top[1]>1?`, most in ${top[0]}`:''}.`;
+}
+function applyChapter(i){
+ showCity(-1);
+ if(i===0){goHome();return;}
+ const v=views[i],stats=CHAPTER_AREA[i]?areaStats(CHAPTER_AREA[i]):'';
+ ui.active(i);ui.copy('chapter-'+i,{...v,body:stats?`${v.body} ${stats}`:v.body});
+ scene.flyTo(v.lat,v.lon,v.zoom,3000);scene.setRotation(false);
+ const g=CHAPTER_TORO[i]&&toroRegions.find(x=>x.id===CHAPTER_TORO[i]);
+ if(g)loadShapes().then(sh=>{if(tour.step?.chapter===i||!tour.on)layer.highlight(g.members.flatMap(m=>sh[data.regions[m].region]??[]),g.color);});
+}
+function applyToroStop(id){
+ const g=toroRegions.find(x=>x.id===id);if(!g)return;
+ focusToroRegion(id);
+ const states=new Set(g.members.map(i=>data.regions[i].region));
+ ui.copy('toro-'+id,{kicker:`TORO REGION · ${g.abbr}`,title:`${g.name}.`,body:`${g.members.length} ${g.members.length===1?'state':'states'} in Toro's ${g.name} region. ${areaStats(r=>states.has(r.region))}`});
+}
+const TOUR=[{chapter:0,s:10},{chapter:1,s:10},{chapter:2,s:10},{chapter:3,s:10},{chapter:4,s:8},{chapter:5,s:8},{chapter:1,s:6},
+ ...['pacific','rocky','southwest','midwest','northeast','southeast'].map(id=>({toro:id,s:7}))];
+const tour={on:!reduced(),i:0,until:0,step:null};
+function runTourStep(){
+ const st=tour.step=TOUR[tour.i];tour.until=performance.now()+st.s*1000;
+ if('chapter' in st)applyChapter(st.chapter);else applyToroStop(st.toro);
+ if(st.chapter===0)scene.setRotation(!reduced());
+}
+function startTour(){tour.on=!reduced();tour.i=0;if(tour.on)runTourStep();else applyChapter(0);}
+function stopTour(){tour.on=false;}
+function tickTour(now){if(tour.on&&now>=tour.until){tour.i=(tour.i+1)%TOUR.length;runTourStep();}}
+document.querySelectorAll('[data-chapter]').forEach(b=>b.onclick=()=>{const i=+b.dataset.chapter;if(i===0)return startTour();stopTour();applyChapter(i);});
 
 // Live mode, two sources. With a server that has Mixpanel credentials (local dev), the
 // proxy streams events five minutes behind real time. On GitHub Pages there is no
@@ -206,7 +249,7 @@ function setMode(mode){
  if(on&&liveKind==='proxy'){since=0;liveToday=null;layer.setLive(liveClock);poll(true);liveTimer=setInterval(poll,POLL);}
  else if(on)startStream();
  else{layer.setLive(null);liveKpis=null;renderKpis();}
- ui.active(0);ui.copy(on?'live':'0',on?liveView:views[0]);scene.home();scene.setRotation(!reduced());
+ startTour();
 }
 document.querySelectorAll('.oasis-mode button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 
@@ -239,7 +282,7 @@ function growKpis(){
 }
 let lastUi=0;
 function frame(t){
- requestAnimationFrame(frame);
+ requestAnimationFrame(frame);tickTour(t);
  const date=layer.date(),sun=subsolar(date);scene.setSunGeo(sun.lat,sun.lon);
  if(t-lastUi<100)return;lastUi=t;
  zoomOut.hidden=scene.getState().zoom<.3;
@@ -261,5 +304,5 @@ function frame(t){
  for(const k of KINDS)document.querySelector(`.oasis-chip[data-kind="${k.id}"] b`).textContent=fmt.format(Math.round(counts[k.id]??0));
 }
 requestAnimationFrame(frame);
-setPlaying(!reduced());scene.setRotation(!reduced());
+setPlaying(!reduced());scene.setRotation(!reduced());if(!new URLSearchParams(location.search).has('live'))startTour();
 try{await scene.whenReady;if($('#earth-canvas').dataset.assetError)throw Error('Earth texture unavailable');ui.ready();}catch(e){ui.status('Some Earth imagery could not load. Reload to try again.');console.error(e);}
