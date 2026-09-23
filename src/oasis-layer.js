@@ -162,15 +162,15 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
   const shadeMesh = new THREE.Mesh(new THREE.SphereGeometry(radius + .015, 160, 100), shadeMaterial);
   shadeMesh.renderOrder = 3; shadeMesh.visible = false; group.add(shadeMesh);
   let shadeTarget = 0;
-  function highlight(rings) {
+  function highlight(rings, color = '#ffffff') {
    if (!rings?.length) {shadeTarget = 0; return;}
    const W = shade.width, H = shade.height, x = lon => (lon + 180) / 360 * W, y = lat => (90 - lat) / 180 * H;
    shadeCtx.clearRect(0, 0, W, H); shadeCtx.lineJoin = 'round';
    for (const ring of rings) {
     shadeCtx.beginPath();
     for (let i = 0; i < ring.length; i += 2) (i ? shadeCtx.lineTo : shadeCtx.moveTo).call(shadeCtx, x(ring[i]), y(ring[i + 1]));
-    shadeCtx.closePath(); shadeCtx.fillStyle = 'rgba(255,255,255,.4)'; shadeCtx.fill();
-    shadeCtx.strokeStyle = 'rgba(255,255,255,.85)'; shadeCtx.lineWidth = 2.5; shadeCtx.stroke();
+    shadeCtx.closePath(); shadeCtx.globalAlpha = color === '#ffffff' ? .4 : .55; shadeCtx.fillStyle = color; shadeCtx.fill();
+    shadeCtx.globalAlpha = .85; shadeCtx.strokeStyle = '#ffffff'; shadeCtx.lineWidth = 2; shadeCtx.stroke(); shadeCtx.globalAlpha = 1;
    }
    shadeTexture.needsUpdate = true; shadeMesh.visible = true; shadeTarget = 1;
   }

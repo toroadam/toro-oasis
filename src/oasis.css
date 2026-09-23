@@ -128,3 +128,6 @@ body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
 .oasis-regions i{position:absolute;left:0;bottom:0;height:2px;background:var(--toro);opacity:.85}
 .oasis-mini{width:54px;height:16px}
 .oasis-kpis .oasis-caption{grid-column:1/-1;margin:2px 2px 0!important}
+.oasis-regions span s{display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--swatch);margin-right:8px;vertical-align:1px}
+.oasis-states{margin-top:14px;gap:4px}.oasis-states button{grid-template-columns:0 1fr auto;padding:7px 10px}.oasis-states span{font-size:12px}.oasis-states em{font-size:12px}
+body .exploration .ex-detail{max-height:calc(100vh - 430px);overflow:auto}

@@ -46,13 +46,33 @@ const clock=d=>`${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day
 // Network cards and the regional leaderboard share the right-hand panel whenever no city
 // is selected; the header switches between them.
 let liveKpis=null,kpiView='network',regionMetric='customers',onlineText='';
+// Toro's regions, as in the Oasis W design file (Admin > regions map), with its colours.
+const TORO_REGIONS=[
+ {id:'pacific',name:'Pacific',abbr:'P',color:'#5c8d5b',states:['Washington','Oregon','California']},
+ {id:'rocky',name:'Rocky Mountains',abbr:'RM',color:'#789399',states:['Idaho','Montana','Wyoming','Nevada','Utah','Colorado']},
+ {id:'southwest',name:'Southwest',abbr:'SW',color:'#f8c391',states:['Arizona','New Mexico','Texas','Oklahoma']},
+ {id:'midwest',name:'Midwest',abbr:'MW',color:'#c4a300',states:['North Dakota','South Dakota','Nebraska','Kansas','Minnesota','Iowa','Missouri','Wisconsin','Illinois','Michigan','Indiana','Ohio']},
+ {id:'northeast',name:'Northeast',abbr:'NE',color:'#dfd6c7',states:['Pennsylvania','New York','New Jersey','Connecticut','Rhode Island','Massachusetts','Vermont','New Hampshire','Maine','Delaware','Maryland','District of Columbia']},
+ {id:'southeast',name:'Southeast',abbr:'SE',color:'#2a5953',states:['West Virginia','Virginia','Kentucky','Tennessee','North Carolina','South Carolina','Georgia','Florida','Alabama','Mississippi','Arkansas','Louisiana']},
+ {id:'noncontiguous',name:'Noncontiguous',abbr:'NC',color:'#905e42',states:['Alaska','Hawaii']},
+ {id:'canada',name:'Canada',abbr:'CA',color:'#9aa6ab',states:['British Columbia','Alberta','Saskatchewan','Manitoba','Ontario','Quebec','New Brunswick','Nova Scotia','Prince Edward Island','Newfoundland and Labrador','Yukon','Northwest Territories','Nunavut']},
+];
+const toroRegions=(()=>{
+ const byState=new Map(TORO_REGIONS.flatMap(g=>g.states.map(st=>[st,g.id])));
+ const groups=[...TORO_REGIONS,{id:'intl',name:'International',abbr:'INT',color:'#646e73',states:[]}].map(g=>({...g,members:[],customers:0,added:0,opens:0,error:0,cancelled:0,watering:0,signup:0,daily:null,lat:0,lon:0,w:0}));
+ const find=id=>groups.find(g=>g.id===id);
+ (data.regions??[]).forEach((r,i)=>{const g=find(byState.get(r.region)??'intl');g.members.push(i);
+  for(const k of ['customers','added','opens','error','cancelled','watering','signup'])g[k]+=r[k]??0;
+  g.daily=g.daily?g.daily.map((v,j)=>v+(r.daily[j]??0)):[...r.daily];const w=r.opens+1;g.lat+=r.lat*w;g.lon+=r.lon*w;g.w+=w;});
+ return groups.filter(g=>g.members.length).map(g=>({...g,lat:g.lat/g.w,lon:g.lon/g.w}));
+})();
 const METRICS={customers:{label:'Users',key:'customers'},added:{label:'Controllers',key:'added'},opens:{label:'Activity',key:'opens'}};
 const miniSpark=values=>{const max=Math.max(1,...values),w=54,h=16,step=w/(values.length-1);return `<svg class="oasis-mini" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${values.map((v,i)=>`${(i*step).toFixed(1)},${(h-1-(v/max)*(h-3)).toFixed(1)}`).join(' ')}" fill="none" stroke="#e11837" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg>`;};
 function renderRegions(){
- const m=METRICS[regionMetric],rows=[...(data.regions??[])].sort((a,b)=>b[m.key]-a[m.key]).slice(0,5),max=Math.max(1,rows[0]?.[m.key]??1);
+ const m=METRICS[regionMetric],rows=[...toroRegions].sort((a,b)=>b[m.key]-a[m.key]).slice(0,6),max=Math.max(1,rows[0]?.[m.key]??1);
  return `<div class="oasis-metrics" role="group" aria-label="Rank by">${Object.entries(METRICS).map(([id,x])=>`<button data-metric="${id}" aria-pressed="${id===regionMetric}">${x.label}</button>`).join('')}</div>
-  <ol class="oasis-regions">${rows.map((r,i)=>`<li><button data-region="${data.regions.indexOf(r)}"><b>${i+1}</b><span>${r.region}</span>${miniSpark(r.daily)}<em>${fmt.format(r[m.key])}</em><i style="width:${(r[m.key]/max*100).toFixed(1)}%"></i></button></li>`).join('')}</ol>
-  <p class="oasis-caption">${regionMetric==='customers'?'Signed-in users':regionMetric==='added'?'Controllers added':'App opens'} by state or province, since April</p>`;
+  <ol class="oasis-regions">${rows.map((r,i)=>`<li><button data-toro="${r.id}" style="--swatch:${r.color}"><b>${i+1}</b><span><s></s>${r.name}</span>${miniSpark(r.daily)}<em>${fmt.format(r[m.key])}</em><i style="width:${(r[m.key]/max*100).toFixed(1)}%"></i></button></li>`).join('')}</ol>
+  <p class="oasis-caption">${regionMetric==='customers'?'Signed-in users':regionMetric==='added'?'Controllers added':'App opens'} by Toro region, since April</p>`;
 }
 function renderKpis(){
  const k={...data.kpis,...(liveKpis??{})},pct=k.online==null?'—':`${(k.online*100).toFixed(1).replace(/\.0$/,'')}%`;
@@ -71,6 +91,7 @@ kpis.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.view){kpiView=b.dataset.view;renderKpis();}
  else if(b.dataset.metric){regionMetric=b.dataset.metric;renderKpis();}
+ else if(b.dataset.toro)focusToroRegion(b.dataset.toro);
  else if(b.dataset.region)focusRegion(+b.dataset.region);
 });
 
@@ -106,6 +127,17 @@ function focusRegion(i){
  const r=data.regions[i];loadShapes().then(s=>{if(!detail.hidden&&detail.dataset.region===r.region)layer.highlight(s[r.region]);});ui.active(-1);scene.flyTo(r.lat,r.lon,.55,2400);scene.setRotation(false);layer.select(-1);
  detail.innerHTML=`<button class="ex-close" aria-label="Close region">✕</button><span class="eyebrow">REGION · ${r.lat.toFixed(1)}°, ${r.lon.toFixed(1)}°</span><h2>${r.region}</h2><p class="oasis-region">Since April 2026</p><dl class="oasis-stats"><div><dt>Users</dt><dd>${fmt.format(r.customers)}</dd></div><div><dt>App opens</dt><dd>${fmt.format(r.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${r.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${r.error}</dd></div><div><dt>Cancelled</dt><dd>${r.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${r.watering}</dd></div></dl>${spark(r.daily)}<p class="oasis-caption">Daily app opens since ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})}</p>`;
  detail.dataset.region=r.region;detail.hidden=false;kpis.hidden=true;feed.hidden=true;detail.querySelector('.ex-close').onclick=()=>showCity(-1);
+}
+function focusToroRegion(id){
+ const g=toroRegions.find(x=>x.id===id),m=METRICS[regionMetric];if(!g)return;
+ const spread=Math.max(...g.members.map(i=>Math.abs(data.regions[i].lon-g.lon)),5);
+ ui.active(-1);scene.flyTo(g.lat,g.lon,spread>25?.2:spread>12?.36:.5,2400);scene.setRotation(false);layer.select(-1);
+ const states=g.members.map(i=>[i,data.regions[i]]).sort((a,b)=>b[1][m.key]-a[1][m.key]);
+ detail.innerHTML=`<button class="ex-close" aria-label="Close region">✕</button><span class="eyebrow" style="color:${g.color==='#dfd6c7'?'#dfd6c7':g.color}">TORO REGION · ${g.abbr}</span><h2>${g.name}</h2><p class="oasis-region">${g.members.length} ${g.id==='canada'?'provinces':g.id==='intl'?'places':'states'} with activity · since April 2026</p><dl class="oasis-stats"><div><dt>Users</dt><dd>${fmt.format(g.customers)}</dd></div><div><dt>App opens</dt><dd>${fmt.format(g.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${g.added}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${g.watering}</dd></div></dl>${spark(g.daily)}<p class="oasis-caption">Daily app opens since ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})}</p><ol class="oasis-regions oasis-states">${states.slice(0,8).map(([i,r])=>`<li><button data-region="${i}"><b></b><span>${r.region}</span><em>${fmt.format(r[m.key])}</em></button></li>`).join('')}</ol>`;
+ detail.dataset.region=g.name;detail.hidden=false;kpis.hidden=true;feed.hidden=true;
+ detail.querySelector('.ex-close').onclick=()=>showCity(-1);
+ detail.querySelectorAll('[data-region]').forEach(b=>b.onclick=()=>focusRegion(+b.dataset.region));
+ loadShapes().then(s=>{if(!detail.hidden&&detail.dataset.region===g.name)layer.highlight(g.members.flatMap(i=>s[data.regions[i].region]??[]),g.color);});
 }
 function goHome(){layer.highlight(null);ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
 zoomOut.onclick=goHome;
