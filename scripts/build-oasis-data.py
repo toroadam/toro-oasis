@@ -297,6 +297,19 @@ def build_long(raw, gaz, profile_raw):
             di = next((i for i, n in enumerate(row[1:]) if n), None)
             if di is not None and di < len(seen): seen[di] += 1
         kpis['customerDaily'] = seen; kpis['users'] = sum(seen)
+    # Users who used a controller (status, irrigation or zone screens, controller list, add),
+    # first seen per day. This tracks the fleet from April, before controller IDs were logged.
+    cu = raw / 'controller_users_daily.json'
+    if cu.exists():
+        first = {}
+        for series in json.load(open(cu))['result']['results'].values():
+            for row in series['rows']:
+                if row[0] in ('$overall', 'undefined', None): continue
+                di = next((i for i, n in enumerate(row[1:]) if n), None)
+                if di is not None: first[row[0]] = min(first.get(row[0], di), di)
+        seen = [0] * len(day_start)
+        for di in first.values(): seen[min(di, len(seen) - 1)] += 1
+        kpis['controllerUserDaily'] = seen; kpis['controllerUsers'] = sum(seen)
     return {'source': 'mixpanel', 'project': 'Oasis Mobile', 'start': start.isoformat().replace('+00:00', 'Z'),
             'hours': hours, 'cities': cities, 'activity': sorted([h, c, n] for (h, c), n in activity.items()),
             'events': events, 'regions': regions, 'kpis': kpis, 'skipped': dict(skipped)}
