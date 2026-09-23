@@ -13,7 +13,7 @@ export const KINDS = [
  {id:'cancelled',label:'Setup cancelled',color:'#9aa6ab'},
  {id:'watering',label:'Watering',color:'#3079f0'},
 ];
-const OUTCOMES = ['added', 'error', 'cancelled', 'watering', 'signup']; // replay event kinds 0-4 (signup: new customer)
+const OUTCOMES = ['added', 'error', 'cancelled', 'watering', 'signup', 'controller']; // replay event kinds 0-5 (signup: new user; controller: first seen at its city)
 const HQ = {lat:44.8408, lon:-93.2983}; // The Toro Company, Bloomington, Minnesota
 const RIPPLES = 2048, BEAMS = 192, ARCS = 18, ARC_POINTS = 72;
 const colors = KINDS.map(k => new THREE.Color(k.color));
@@ -26,7 +26,7 @@ export function subsolar(date) {
 
 export function prepare(data) {
  const hours = data.hours, buckets = Array.from({length:hours}, () => []), prefix = new Float64Array(hours + 1);
- const days = Math.ceil(hours / 24), totals = data.cities.map(() => ({opens:0, added:0, error:0, cancelled:0, watering:0, signup:0, daily:new Array(days).fill(0)}));
+ const days = Math.ceil(hours / 24), totals = data.cities.map(() => ({opens:0, added:0, error:0, cancelled:0, watering:0, signup:0, controller:0, daily:new Array(days).fill(0)}));
  // When each city first shows activity; in Replay its marker appears (with a flash) at that moment.
  const born = new Float64Array(data.cities.length).fill(Infinity);
  for (const [h, c, n] of data.activity) {buckets[h]?.push([c, n]); totals[c].opens += n; totals[c].daily[Math.floor(h / 24)] += n; born[c] = Math.min(born[c], h * 3600);}
@@ -223,6 +223,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    while (nextEvent < data.events.length && data.events[nextEvent][0] <= limit) {
     const [at, c, k] = data.events[nextEvent++], type = k + 1;
     if (type === 5) {flash(c, at); counts.signup = (counts.signup ?? 0) + 1; onEvent?.({kind:'signup', city:c, at}); continue;}
+    if (type === 6) {flash(c, at); counts.controller = (counts.controller ?? 0) + 1; continue;}
     if (type === 4) {ripple(c, 4, at, 1, pulse * 1.6); counts.watering++; onEvent?.({kind:'watering', city:c, at}); continue;}
     if (type === 1) flash(c, at);
     ripple(c, type, at, 1, burst); if (type < 3) beam(c, type, at, burst * 1.3); if (type === 1) arc(c, at, burst * 1.6);

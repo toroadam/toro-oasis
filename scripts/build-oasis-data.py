@@ -37,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 # Internal test traffic, as "Region|City;Region|City" in OASIS_INTERNAL_PLACES (kept out of the repo).
 _internal_raw = os.environ.get('OASIS_INTERNAL_PLACES', '')
-KIND = {'added': 0, 'server_error': 1, 'cancelled': 2, 'watering': 3, 'signup': 4}
+KIND = {'added': 0, 'server_error': 1, 'cancelled': 2, 'watering': 3, 'signup': 4, 'controller': 5}
 
 
 def norm(s):
@@ -197,13 +197,13 @@ def build_regions(activity, events, cities, hours, customers_file):
     agg = {}
     def row(c):
         name = cities[c][3] or cities[c][2]
-        return agg.setdefault(name, {'region': name, 'opens': 0, 'added': 0, 'error': 0, 'cancelled': 0, 'watering': 0, 'signup': 0,
+        return agg.setdefault(name, {'region': name, 'opens': 0, 'added': 0, 'error': 0, 'cancelled': 0, 'watering': 0, 'signup': 0, 'controller': 0,
                                      'daily': [0] * days, 'lat': 0.0, 'lon': 0.0, 'w': 0})
     for (h, c), n in activity.items():
         r = row(c); r['opens'] += n; r['daily'][h // 24] += n
         r['lat'] += cities[c][0] * n; r['lon'] += cities[c][1] * n; r['w'] += n
     for _, c, k in events:
-        r = row(c); r[['added', 'error', 'cancelled', 'watering', 'signup'][k]] += 1
+        r = row(c); r[['added', 'error', 'cancelled', 'watering', 'signup', 'controller'][k]] += 1
         if not r['w']: r['lat'], r['lon'] = cities[c][0], cities[c][1]
     out = []
     for r in agg.values():
@@ -271,10 +271,6 @@ def build_long(raw, gaz, profile_raw):
                 for _ in range(n or 0):
                     h = rng.choices(range(24), weights=w)[0]
                     events.append([(di * 24 + h) * 3600 + rng.randrange(3600), cid, k])
-    events.sort()
-    activity, events, cities = fold_sparse(activity, events, cities)
-    regions = build_regions(activity, events, cities, hours, raw / 'customers_by_region.json')
-
     first = {}
     for f in ('controller_id_daily.json', 'controller_uid_daily.json'):
         for name, series in json.load(open(raw / f))['result']['results'].items():
@@ -284,6 +280,20 @@ def build_long(raw, gaz, profile_raw):
                     if n: first[row[0]] = min(first.get(row[0], di), di); break
     growth = [0] * len(day_start)
     for di in first.values(): growth[di] += 1
+
+    # Where each controller is: the city of its setup events (Bluetooth setup needs the phone next
+    # to the controller), else the city its owner uses the app from. Each becomes a 'controller'
+    # event at its city on the day it was first seen. IDs are dropped here; only places and times remain.
+    locs = raw / 'controller_locations.json'
+    if locs.exists():
+        for cid_hex, (region, city, _src) in json.load(open(locs)).items():
+            cid = city_id(region, city or 'undefined')
+            if cid is None or cid_hex not in first: continue
+            h = rng.choices(range(24), weights=shape(region))[0]
+            events.append([(first[cid_hex] * 24 + h) * 3600 + rng.randrange(3600), cid, KIND['controller']])
+    events.sort()
+    activity, events, cities = fold_sparse(activity, events, cities)
+    regions = build_regions(activity, events, cities, hours, raw / 'customers_by_region.json')
 
     kpis = json.load(open(raw / 'kpis.json'))
     kpis['controllerDaily'] = growth  # controllers first seen per day, from day 0 of the replay
