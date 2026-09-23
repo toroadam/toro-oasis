@@ -168,7 +168,7 @@ async function poll(first=false){
 function setMode(mode){
  const on=mode==='live'&&!!liveKind;if(on===live)return;live=on;
  document.querySelectorAll('.oasis-mode button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===(on?'live':'replay'))));
- shellRoot.classList.toggle('oasis-is-live',on);range.hidden=on;liveStatus.hidden=!on;$('.ex-range-row label').textContent=on?'Live':'Replay';
+ shellRoot.classList.toggle('oasis-is-live',on);$('.ex-range-row').hidden=on; // Live has no timeline row
  feed.replaceChildren();clearInterval(liveTimer);
  if(on&&liveKind==='proxy'){since=0;liveToday=null;layer.setLive(liveClock);poll(true);liveTimer=setInterval(poll,POLL);}
  else if(on)startStream();
