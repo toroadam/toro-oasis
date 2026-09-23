@@ -287,6 +287,16 @@ def build_long(raw, gaz, profile_raw):
 
     kpis = json.load(open(raw / 'kpis.json'))
     kpis['controllerDaily'] = growth  # controllers first seen per day, from day 0 of the replay
+    # Customers first seen per day (first app_open per user ID); only the daily counts are kept.
+    cf = raw / 'customers_first_seen_daily.json'
+    if cf.exists():
+        series = next(iter(json.load(open(cf))['result']['results'].values()))
+        seen = [0] * len(day_start)
+        for row in series['rows']:
+            if row[0] in ('$overall', 'undefined', None): continue
+            di = next((i for i, n in enumerate(row[1:]) if n), None)
+            if di is not None and di < len(seen): seen[di] += 1
+        kpis['customerDaily'] = seen; kpis['users'] = sum(seen)
     return {'source': 'mixpanel', 'project': 'Oasis Mobile', 'start': start.isoformat().replace('+00:00', 'Z'),
             'hours': hours, 'cities': cities, 'activity': sorted([h, c, n] for (h, c), n in activity.items()),
             'events': events, 'regions': regions, 'kpis': kpis, 'skipped': dict(skipped)}

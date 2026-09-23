@@ -45,7 +45,7 @@ const clock=d=>`${d.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day
 
 // Network cards and the regional leaderboard share the right-hand panel whenever no city
 // is selected; the header switches between them.
-let liveKpis=null,kpiView='network',regionMetric='customers';
+let liveKpis=null,kpiView='network',regionMetric='customers',onlineText='';
 const METRICS={customers:{label:'Customers',key:'customers'},added:{label:'Controllers',key:'added'},opens:{label:'Activity',key:'opens'}};
 const miniSpark=values=>{const max=Math.max(1,...values),w=54,h=16,step=w/(values.length-1);return `<svg class="oasis-mini" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${values.map((v,i)=>`${(i*step).toFixed(1)},${(h-1-(v/max)*(h-3)).toFixed(1)}`).join(' ')}" fill="none" stroke="#e11837" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg>`;};
 function renderRegions(){
@@ -57,13 +57,14 @@ function renderRegions(){
 function renderKpis(){
  const k={...data.kpis,...(liveKpis??{})},pct=k.online==null?'—':`${(k.online*100).toFixed(1).replace(/\.0$/,'')}%`;
  const asOf=liveKpis?'<b class="oasis-live-dot"></b>Live':`As of ${new Date(k.asOf+'T12:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})}`;
+ onlineText=k.onlineNote?`Of ${fmt.format(k.reporting)} reporting, ${k.onlineNote.replace('seen online in the ','')}`:`Of ${fmt.format(k.reporting)} at last status report`;
  kpis.classList.toggle('oasis-kpis-regions',kpiView==='regions');
  if($('.ex-detail').hidden)feed.hidden=kpiView==='regions'; // the leaderboard takes the feed's space
  kpis.innerHTML=`<header><div class="oasis-tabs" role="tablist"><button role="tab" data-view="network" aria-selected="${kpiView==='network'}">Network</button><button role="tab" data-view="regions" aria-selected="${kpiView==='regions'}">Top regions</button></div><span>${asOf}</span></header>
   ${kpiView==='regions'?renderRegions():`<div class="oasis-kpi"><span>Customers</span><strong data-kpi="users">${fmt.format(k.users)}</strong><small>${k.usersNote??`App users since ${k.usersSince}`}</small></div>
-  <div class="oasis-kpi"><span>Controllers</span><strong data-kpi="controllers">${fmt.format(k.controllers)}</strong><small>${k.controllersNote??`Added through the app since ${k.controllersSince}`}</small></div>
+  <div class="oasis-kpi"><span>Controllers</span><strong data-kpi="controllers">${fmt.format(k.controllers)}</strong><small data-kpi="controllersNote">${k.controllersNote??`Added through the app since ${k.controllersSince}`}</small></div>
   <div class="oasis-kpi"><span>New this month</span><strong style="color:#42ce11" data-kpi="month">${fmt.format(k.addedMonth)}</strong><small data-kpi="monthLabel">Controllers added in ${k.month}</small></div>
-  <div class="oasis-kpi"><span>Online now</span><strong>${pct}</strong><i class="oasis-meter"><b style="width:${(k.online??0)*100}%"></b></i><small>${k.onlineNote?`Of ${fmt.format(k.reporting)} reporting, ${k.onlineNote.replace('seen online in the ','')}`:`Of ${fmt.format(k.reporting)} at last status report`}</small></div>`}`;
+  <div class="oasis-kpi"><span>Online now</span><strong>${pct}</strong><i class="oasis-meter"><b style="width:${(k.online??0)*100}%"></b></i><small data-kpi="onlineLabel">${onlineText}</small></div>`}`;
 }
 renderKpis();
 kpis.addEventListener('click',e=>{
@@ -182,19 +183,26 @@ const ago=ms=>{const m=Math.max(0,Math.round(ms/60000));return m<1?'just now':m<
 // card is its total minus what arrives after t. "New this month" counts adds in t's month so far.
 const sortedAt=k=>data.events.filter(e=>e[2]===k).map(e=>e[0]).sort((a,b)=>a-b);
 const signupAt=sortedAt(4),addedAt=sortedAt(0);
-const controllerCum=data.kpis.controllerDaily?.reduce((a,n)=>(a.push((a.at(-1)??0)+n),a),[]);
+const cumulative=d=>d?.reduce((a,n)=>(a.push((a.at(-1)??0)+n),a),[]);
+const controllerCum=cumulative(data.kpis.controllerDaily),customerCum=cumulative(data.kpis.customerDaily);
+// Controller IDs were rarely logged before June 2026, so early controller counts are understated.
+const controllerTrackedFrom=(Date.UTC(2026,5,1)-data.startDate.getTime())/1000;
 const countUpTo=(arr,t)=>{let lo=0,hi=arr.length;while(lo<hi){const m=(lo+hi)>>1;if(arr[m]<=t)lo=m+1;else hi=m;}return lo;};
 function growKpis(){
  if(kpiView!=='network'||kpis.hidden)return;
  const t=layer.time,k=data.kpis,set=(id,v)=>{const el=kpis.querySelector(`[data-kpi="${id}"]`);if(el&&el.textContent!==v)el.textContent=v;};
- if(live){set('users',fmt.format(k.users));set('controllers',fmt.format(k.controllers));set('month',fmt.format(liveKpis?.addedMonth??k.addedMonth));set('monthLabel',`Controllers added in ${liveKpis?.month??k.month}`);return;}
- set('users',fmt.format(k.users-(signupAt.length-countUpTo(signupAt,t))));
+ if(live){set('users',fmt.format(k.users));set('controllersNote',k.controllersNote??'Connected, all time');set('onlineLabel',onlineText);set('controllers',fmt.format(k.controllers));set('month',fmt.format(liveKpis?.addedMonth??k.addedMonth));set('monthLabel',`Controllers added in ${liveKpis?.month??k.month}`);return;}
+ const day=Math.max(0,Math.floor(t/86400));
+ set('users',fmt.format(customerCum?customerCum[Math.min(customerCum.length-1,day)]:k.users-(signupAt.length-countUpTo(signupAt,t))));
+ set('controllersNote',t<controllerTrackedFrom?'Seen in the app. IDs were only partly logged before June':(k.controllersNote??'Connected, all time'));
  // Controllers follow the real first-seen curve when the build provides it.
  set('controllers',fmt.format(controllerCum?controllerCum[Math.min(controllerCum.length-1,Math.max(0,Math.floor(t/86400)))]:k.controllers-(addedAt.length-countUpTo(addedAt,t))));
  const d=new Date(data.startDate.getTime()+t*1000),monthStart=Math.max(0,(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)-data.startDate.getTime())/1000);
  const month=d.toLocaleString('en-US',{month:'long',timeZone:'UTC'}),partial=monthStart===0&&data.startDate.getUTCDate()>1;
- set('month',fmt.format(countUpTo(addedAt,t)-countUpTo(addedAt,monthStart-1)));
- set('monthLabel',`Controllers added in ${month}${partial?` (from ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})})`:''}`);
+
+ set('monthLabel',t<controllerTrackedFrom?'Setup tracking began in June 2026':`Controllers added in ${month}${partial?` (from ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})})`:''}`);
+ set('month',t<controllerTrackedFrom?'—':fmt.format(countUpTo(addedAt,t)-countUpTo(addedAt,monthStart-1)));
+ set('onlineLabel','Today · '+onlineText);
 }
 let lastUi=0;
 function frame(t){
