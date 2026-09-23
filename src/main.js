@@ -5,9 +5,9 @@ import './oasis.css';
 import './oasis-mobile.css';
 
 const views=[
- {kicker:'01 / TORO OASIS',title:'The Oasis network,<br> hour by hour.',body:'Thirty days of the Oasis app, replayed across the globe. Every red pulse is someone checking on a yard, every blue dot is a zone watering, and every green arc is a new controller joining the network from Toro HQ.'},
+ {kicker:'01 / TORO OASIS',title:'The Oasis network,<br> from day one.',body:'The Oasis app since launch in April, replayed across the globe. Every red pulse is someone checking on a yard, every blue dot is a zone watering, and every green arc is a new controller joining the network from Toro HQ.'},
  {kicker:'NORTH AMERICA',title:'Where Oasis<br> lives.',body:'Almost all Oasis activity is in the US and Canada. The day line follows the replay clock, so you can watch each evening wave roll west.',lat:41,lon:-97,zoom:.2},
- {kicker:'THE NORTHEAST',title:'The Philadelphia<br> corridor.',body:'The Philadelphia suburbs are one of the densest Oasis clusters. Select any city to see its thirty days.',lat:40.1,lon:-75.4,zoom:.86},
+ {kicker:'THE NORTHEAST',title:'The Philadelphia<br> corridor.',body:'The Philadelphia suburbs are one of the densest Oasis clusters. Select any city to see its history.',lat:40.1,lon:-75.4,zoom:.86},
  {kicker:'THE SOUTHWEST',title:'Built for<br> the heat.',body:'Phoenix, Scottsdale, Mesa and Chandler. Irrigation matters most where water is scarce, and the activity shows it.',lat:33.5,lon:-112,zoom:.8},
  {kicker:'AUSTRALIA',title:'The other side<br> of the day.',body:'Adelaide and Brisbane come alive while North America sleeps.',lat:-30,lon:142,zoom:.42},
  {kicker:'INDIA',title:'Early days<br> in India.',body:'A small group of Oasis users, around Delhi and Mumbai. Every pulse here is one of a few dozen app opens a month.',lat:22,lon:79,zoom:.42},
@@ -16,7 +16,7 @@ const liveView={kicker:'LIVE',title:'Oasis,<br> right now.',body:'Activity from 
 const fmt=new Intl.NumberFormat('en-US');
 const legend=KINDS.map(k=>`<button class="oasis-chip" data-kind="${k.id}" aria-pressed="true" style="--chip:${k.color}"><i></i>${k.label}<b>0</b></button>`).join('');
 const ui=shell({id:'planet',...views[0],chapters:['Network','North America','Northeast','Southwest','Australia','India'],rangeLabel:'Replay',note:'Oasis app analytics · City-level locations · Drag to rotate · Scroll to zoom · Select a city',legend,
- sources:`<p>Activity comes from Toro's <strong>Oasis</strong> app analytics. Locations are the city associated with each phone's connection, never a street address. Places with little activity are shown at their state or region instead, and are drawn dimmer.</p><p>Red pulses are app opens, placed in the hour they happened. Green beams and arcs are controllers being added. Amber marks setup errors and grey marks setups the user cancelled; they are shown separately because most unfinished setups are cancellations, not failures. Blue dots are zones watering, started from the app: mostly test runs while a controller is being set up, plus manual runs. Scheduled watering runs on the controller itself and is not shown.</p><p><strong>In Replay</strong> the network builds up over the thirty days: each place appears the first time it is active, new customers (sign-ups) and new controllers flash white before settling to red, and the customer and controller cards count up to today's totals.</p><p><strong>Network cards and globe activity</strong> count production traffic from signed-in customers only, excluding Toro staff and test accounts. Customers are everyone who has signed in since analytics began in April 2026, excluding Toro and test accounts. Controllers are every distinct controller that has connected (added, registered, reporting status or used in the app) since analytics began; controllers set up before then, or through app versions that did not record controller IDs, are not included, so the fleet is larger. Online is the share of controllers that reported being online in the last 30 days.</p><p><strong>Live</strong> streams real activity from today and yesterday, sped up so the network is always moving. The data is refreshed every hour.</p><p>Internal test traffic is excluded. No names, e-mail addresses, or user, device or controller identifiers are published. Times are UTC, and the sun position is approximate.</p><p>Globe renderer adapted from <a href="https://github.com/ethanplusai/earth-moon-solar" target="_blank" rel="noopener">Earth, Moon &amp; Solar System</a> by Ethan Rogers (MIT). Earth imagery is NASA-derived, via WebGL Earth and three-globe. The star background uses the HYG catalog (CC BY-SA 4.0). Place names from GeoNames (CC BY 4.0).</p>`});
+ sources:`<p>Activity comes from Toro's <strong>Oasis</strong> app analytics, from when tracking began in April 2026. Locations are the city associated with each phone's connection, never a street address. Places with little activity are shown at their state or region instead, and are drawn dimmer.</p><p>Red pulses are app opens, placed in the hour they happened. Green beams and arcs are controllers being added. Amber marks setup errors and grey marks setups the user cancelled; they are shown separately because most unfinished setups are cancellations, not failures. Blue dots are zones watering, started from the app: mostly test runs while a controller is being set up, plus manual runs. Scheduled watering runs on the controller itself and is not shown.</p><p><strong>In Replay</strong> the network builds up from April: controllers count up from the day each was first seen, each place appears the first time it is active, new customers (sign-ups) and new controllers flash white before settling to red, and the customer and controller cards count up to today's totals.</p><p><strong>Network cards and globe activity</strong> count production traffic from signed-in customers only, excluding Toro staff and test accounts. Customers are everyone who has signed in since analytics began in April 2026, excluding Toro and test accounts. Controllers are every distinct controller that has connected (added, registered, reporting status or used in the app) since analytics began; controllers set up before then, or through app versions that did not record controller IDs, are not included, so the fleet is larger. Online is the share of controllers that reported being online in the last 30 days.</p><p><strong>Live</strong> streams real activity from today and yesterday, sped up so the network is always moving. The data is refreshed every hour.</p><p>Internal test traffic is excluded. No names, e-mail addresses, or user, device or controller identifiers are published. Times are UTC, and the sun position is approximate.</p><p>Globe renderer adapted from <a href="https://github.com/ethanplusai/earth-moon-solar" target="_blank" rel="noopener">Earth, Moon &amp; Solar System</a> by Ethan Rogers (MIT). Earth imagery is NASA-derived, via WebGL Earth and three-globe. The star background uses the HYG catalog (CC BY-SA 4.0). Place names from GeoNames (CC BY 4.0).</p>`});
 
 // Elements the mobile layout moves must exist before the first await.
 const shellRoot=$('.world-shell');
@@ -35,7 +35,7 @@ async function load(){
  throw Error('No Oasis dataset found');
 }
 const data=prepare(await load());
-document.querySelector('.creator-link').innerHTML=data.source!=='mixpanel'?'Synthetic sample · <strong>No Toro data</strong>':'Oasis analytics · <strong>30 days</strong>';
+document.querySelector('.creator-link').innerHTML=data.source!=='mixpanel'?'Synthetic sample · <strong>No Toro data</strong>':'Oasis analytics · <strong>Since April 2026</strong>';
 if(data.source!=='mixpanel')document.querySelector('.wordmark').insertAdjacentHTML('beforeend','<span class="oasis-badge" title="Synthetic sample: run scripts/build-oasis-data.py to use real Mixpanel data">Sample data</span>');
 
 const place=c=>{const [, , name,region]=data.cities[c];return region&&region!==name?`${name}, ${region}`:name;};
@@ -52,7 +52,7 @@ function renderRegions(){
  const m=METRICS[regionMetric],rows=[...(data.regions??[])].sort((a,b)=>b[m.key]-a[m.key]).slice(0,5),max=Math.max(1,rows[0]?.[m.key]??1);
  return `<div class="oasis-metrics" role="group" aria-label="Rank by">${Object.entries(METRICS).map(([id,x])=>`<button data-metric="${id}" aria-pressed="${id===regionMetric}">${x.label}</button>`).join('')}</div>
   <ol class="oasis-regions">${rows.map((r,i)=>`<li><button data-region="${data.regions.indexOf(r)}"><b>${i+1}</b><span>${r.region}</span>${miniSpark(r.daily)}<em>${fmt.format(r[m.key])}</em><i style="width:${(r[m.key]/max*100).toFixed(1)}%"></i></button></li>`).join('')}</ol>
-  <p class="oasis-caption">${regionMetric==='customers'?'Signed-in customers':regionMetric==='added'?'Controllers added':'App opens'} by state or province, last 30 days</p>`;
+  <p class="oasis-caption">${regionMetric==='customers'?'Signed-in customers':regionMetric==='added'?'Controllers added':'App opens'} by state or province, since April</p>`;
 }
 function renderKpis(){
  const k={...data.kpis,...(liveKpis??{})},pct=k.online==null?'—':`${(k.online*100).toFixed(1).replace(/\.0$/,'')}%`;
@@ -92,7 +92,7 @@ function showCity(c){
  const open=c>=0;detail.hidden=!open;kpis.hidden=open;feed.hidden=open||kpiView==='regions'; // the leaderboard takes the feed's space
  if(!open)return;
  const t=data.totals[c],[lat,lon,name,region,precise]=data.cities[c],quiet=!t.opens&&!t.added&&!t.error&&!t.cancelled&&!t.watering;
- detail.innerHTML=`<button class="ex-close" aria-label="Close city">✕</button><span class="eyebrow">${precise?'CITY':'REGION'} · ${lat.toFixed(1)}°, ${lon.toFixed(1)}°</span><h2>${name}</h2><p class="oasis-region">${region&&region!==name?region:''}</p>${quiet?'<p class="oasis-caption">First seen in live mode. No activity in the thirty-day window.</p>':`<dl class="oasis-stats"><div><dt>App opens</dt><dd>${fmt.format(t.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${t.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${t.error}</dd></div><div><dt>Cancelled</dt><dd>${t.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${t.watering}</dd></div></dl>${spark(t.daily)}<p class="oasis-caption">Daily app opens, last ${t.daily.length} days</p>`}`;
+ detail.innerHTML=`<button class="ex-close" aria-label="Close city">✕</button><span class="eyebrow">${precise?'CITY':'REGION'} · ${lat.toFixed(1)}°, ${lon.toFixed(1)}°</span><h2>${name}</h2><p class="oasis-region">${region&&region!==name?region:''}</p>${quiet?'<p class="oasis-caption">First seen in live mode. No activity in the replay window.</p>':`<dl class="oasis-stats"><div><dt>App opens</dt><dd>${fmt.format(t.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${t.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${t.error}</dd></div><div><dt>Cancelled</dt><dd>${t.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${t.watering}</dd></div></dl>${spark(t.daily)}<p class="oasis-caption">Daily app opens since ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})}</p>`}`;
  detail.querySelector('.ex-close').onclick=()=>{layer.select(-1);showCity(-1);};
 }
 function hover(c,x,y){if(c<0){hoverTip.hidden=true;return;}hoverTip.hidden=false;hoverTip.textContent=`${place(c)} · ${fmt.format(data.totals[c].opens)} opens`;hoverTip.style.transform=`translate(${x+14}px,${y-10}px)`;}
@@ -103,7 +103,7 @@ let shapes=null;
 const loadShapes=()=>shapes??=fetch(import.meta.env.BASE_URL+'data/regions.geo.json').then(r=>r.ok?r.json():{}).catch(()=>({}));
 function focusRegion(i){
  const r=data.regions[i];loadShapes().then(s=>{if(!detail.hidden&&detail.dataset.region===r.region)layer.highlight(s[r.region]);});ui.active(-1);scene.flyTo(r.lat,r.lon,.55,2400);scene.setRotation(false);layer.select(-1);
- detail.innerHTML=`<button class="ex-close" aria-label="Close region">✕</button><span class="eyebrow">REGION · ${r.lat.toFixed(1)}°, ${r.lon.toFixed(1)}°</span><h2>${r.region}</h2><p class="oasis-region">Last 30 days</p><dl class="oasis-stats"><div><dt>Customers</dt><dd>${fmt.format(r.customers)}</dd></div><div><dt>App opens</dt><dd>${fmt.format(r.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${r.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${r.error}</dd></div><div><dt>Cancelled</dt><dd>${r.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${r.watering}</dd></div></dl>${spark(r.daily)}<p class="oasis-caption">Daily app opens, last ${r.daily.length} days</p>`;
+ detail.innerHTML=`<button class="ex-close" aria-label="Close region">✕</button><span class="eyebrow">REGION · ${r.lat.toFixed(1)}°, ${r.lon.toFixed(1)}°</span><h2>${r.region}</h2><p class="oasis-region">Since April 2026</p><dl class="oasis-stats"><div><dt>Customers</dt><dd>${fmt.format(r.customers)}</dd></div><div><dt>App opens</dt><dd>${fmt.format(r.opens)}</dd></div><div><dt>Added</dt><dd style="color:#42ce11">${r.added}</dd></div><div><dt>Errors</dt><dd style="color:#ffb020">${r.error}</dd></div><div><dt>Cancelled</dt><dd>${r.cancelled}</dd></div><div><dt>Watering</dt><dd style="color:#3079f0">${r.watering}</dd></div></dl>${spark(r.daily)}<p class="oasis-caption">Daily app opens since ${data.startDate.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})}</p>`;
  detail.dataset.region=r.region;detail.hidden=false;kpis.hidden=true;feed.hidden=true;detail.querySelector('.ex-close').onclick=()=>showCity(-1);
 }
 function goHome(){layer.highlight(null);ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
@@ -114,8 +114,9 @@ const range=$('#ex-range'),play=$('.ex-play'),liveStatus=$('.oasis-live-status')
 function setPlaying(on){layer.setPlaying(on);play.setAttribute('aria-pressed',String(on));play.textContent=on?'Ⅱ Pause replay':'▶ Play replay';}
 play.onclick=()=>setPlaying(!layer.playing);
 range.oninput=e=>{layer.seek(+e.target.value*data.duration);feed.replaceChildren();};
-const speed=document.createElement('button');speed.className='oasis-speed';speed.textContent='1 hr/s';speed.title='Replay speed';
-const speeds=[[3600,'1 hr/s'],[3*3600,'3 hr/s'],[900,'15 min/s']];let speedIndex=0;
+const speed=document.createElement('button');speed.className='oasis-speed';speed.title='Replay speed';
+// Six months of data: default to half a day per second (about six minutes end to end).
+const speeds=[[12*3600,'12 hr/s'],[24*3600,'1 day/s'],[3600,'1 hr/s']];let speedIndex=0;speed.textContent=speeds[0][1];layer.setSpeed(speeds[0][0]);
 speed.onclick=()=>{speedIndex=(speedIndex+1)%speeds.length;layer.setSpeed(speeds[speedIndex][0]);speed.textContent=speeds[speedIndex][1];};
 play.before(speed);
 document.querySelectorAll('.oasis-chip').forEach(b=>{b.onclick=()=>{const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));chips[b.dataset.kind]=on;layer.setVisible(b.dataset.kind,on);};});
@@ -181,13 +182,15 @@ const ago=ms=>{const m=Math.max(0,Math.round(ms/60000));return m<1?'just now':m<
 // card is its total minus what arrives after t. "New this month" counts adds in t's month so far.
 const sortedAt=k=>data.events.filter(e=>e[2]===k).map(e=>e[0]).sort((a,b)=>a-b);
 const signupAt=sortedAt(4),addedAt=sortedAt(0);
+const controllerCum=data.kpis.controllerDaily?.reduce((a,n)=>(a.push((a.at(-1)??0)+n),a),[]);
 const countUpTo=(arr,t)=>{let lo=0,hi=arr.length;while(lo<hi){const m=(lo+hi)>>1;if(arr[m]<=t)lo=m+1;else hi=m;}return lo;};
 function growKpis(){
  if(kpiView!=='network'||kpis.hidden)return;
  const t=layer.time,k=data.kpis,set=(id,v)=>{const el=kpis.querySelector(`[data-kpi="${id}"]`);if(el&&el.textContent!==v)el.textContent=v;};
  if(live){set('users',fmt.format(k.users));set('controllers',fmt.format(k.controllers));set('month',fmt.format(liveKpis?.addedMonth??k.addedMonth));set('monthLabel',`Controllers added in ${liveKpis?.month??k.month}`);return;}
  set('users',fmt.format(k.users-(signupAt.length-countUpTo(signupAt,t))));
- set('controllers',fmt.format(k.controllers-(addedAt.length-countUpTo(addedAt,t))));
+ // Controllers follow the real first-seen curve when the build provides it.
+ set('controllers',fmt.format(controllerCum?controllerCum[Math.min(controllerCum.length-1,Math.max(0,Math.floor(t/86400)))]:k.controllers-(addedAt.length-countUpTo(addedAt,t))));
  const d=new Date(data.startDate.getTime()+t*1000),monthStart=Math.max(0,(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)-data.startDate.getTime())/1000);
  const month=d.toLocaleString('en-US',{month:'long',timeZone:'UTC'}),partial=monthStart===0&&data.startDate.getUTCDate()>1;
  set('month',fmt.format(countUpTo(addedAt,t)-countUpTo(addedAt,monthStart-1)));

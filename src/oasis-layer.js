@@ -213,7 +213,8 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    const pulse = 1.9 * speed, burst = 3.2 * speed;
    while (nextHour < data.buckets.length && nextHour * 3600 <= limit) {
     for (const [c, n] of data.buckets[nextHour]) {
-     const k = Math.min(n, 4), s = THREE.MathUtils.clamp(n / 4, .35, 1);
+     // At fast speeds one ripple per city-hour keeps the globe readable (and the pool from churning).
+     const k = speed > 7200 ? 1 : Math.min(n, 4), s = THREE.MathUtils.clamp(n / 4, .35, 1);
      for (let j = 0; j < k; j++) ripple(c, 0, nextHour * 3600 + Math.random() * 3600, s, pulse);
      counts.activity += n;
     }

@@ -215,6 +215,83 @@ def build_regions(activity, events, cities, hours, customers_file):
     return sorted(out, key=lambda r: -r['opens'])
 
 
+def build_long(raw, gaz, profile_raw):
+    """Replay since analytics began (April 2026), from daily per-city Insights exports:
+    app_open_daily_city.json and outcomes_daily_city.json (metrics A-F: added, server error,
+    cancelled, zone play/pause, zone test, registration_success), filtered to signed-in,
+    non-Toro, non-test users. Each day's counts are spread across its hours with the region's
+    real hour-of-day pattern from the 30-day hourly export in profile_raw. Controller growth
+    comes from the first day each controller ID appears (controller_id_daily.json and
+    controller_uid_daily.json); only daily counts are published, never IDs."""
+    raw, profile_raw = Path(raw), Path(profile_raw)
+    days_h, daily = insights_rows(raw / 'app_open_daily_city.json')
+    day_start = [datetime.fromisoformat(d[:10]).replace(tzinfo=timezone.utc) for d in days_h[1:]]
+    start, hours = day_start[0], len(day_start) * 24
+    ph, prow = insights_rows(profile_raw / 'app_open_hourly_region.json')
+    hod = {}
+    for r in prow:
+        v = hod.setdefault(r[0], [0] * 24)
+        for h, n in zip(ph[1:], r[1:]): v[int(h[11:13]) if 'T' in h else 0] += n or 0
+    overall = hod.get('$overall', [1] * 24)
+    shape = lambda region: hod.get(region) if sum(hod.get(region, [])) >= 48 else overall
+
+    cities, index, skipped = [], {}, defaultdict(int)
+    def city_id(region, city, country=None):
+        if (norm(region), norm(city)) in INTERNAL: skipped['internal'] += 1; return None
+        spot = gaz.locate(region, city, country)
+        if spot is None: skipped[f'{region} / {city}'] += 1; return None
+        k = (round(spot[0], 3), round(spot[1], 3))
+        if k not in index:
+            index[k] = len(cities); cities.append([k[0], k[1], city if spot[2] else region, region, 1 if spot[2] else 0])
+        return index[k]
+
+    activity = defaultdict(int)
+    for row in daily:
+        if row[0] == '$overall' or row[0].endswith(', $overall'): continue
+        region, city = row[0].split(', ', 1)
+        cid = city_id(region, city)
+        if cid is None: continue
+        w = shape(region)
+        for di, count in enumerate(row[1:]):
+            if not count: continue
+            for h, n in enumerate(spread(count, w)):
+                if n: activity[(di * 24 + h, cid)] += n
+
+    rng, events = random.Random(9), []
+    kinds = {'A.': 0, 'B.': 1, 'C.': 2, 'D.': 3, 'E.': 3, 'F.': 4}
+    for name, series in json.load(open(raw / 'outcomes_daily_city.json'))['result']['results'].items():
+        k = kinds[name[:2]]
+        for row in series['rows']:
+            if row[0] == '$overall' or row[0].endswith(', $overall'): continue
+            region, city = row[0].split(', ', 1)
+            cid = city_id(region, city)
+            if cid is None: continue
+            w = shape(region)
+            for di, n in enumerate(row[1:]):
+                for _ in range(n or 0):
+                    h = rng.choices(range(24), weights=w)[0]
+                    events.append([(di * 24 + h) * 3600 + rng.randrange(3600), cid, k])
+    events.sort()
+    activity, events, cities = fold_sparse(activity, events, cities)
+    regions = build_regions(activity, events, cities, hours, raw / 'customers_by_region.json')
+
+    first = {}
+    for f in ('controller_id_daily.json', 'controller_uid_daily.json'):
+        for name, series in json.load(open(raw / f))['result']['results'].items():
+            for row in series['rows']:
+                if not re.fullmatch(r'[0-9A-F]{16}', str(row[0])): continue
+                for di, n in enumerate(row[1:]):
+                    if n: first[row[0]] = min(first.get(row[0], di), di); break
+    growth = [0] * len(day_start)
+    for di in first.values(): growth[di] += 1
+
+    kpis = json.load(open(raw / 'kpis.json'))
+    kpis['controllerDaily'] = growth  # controllers first seen per day, from day 0 of the replay
+    return {'source': 'mixpanel', 'project': 'Oasis Mobile', 'start': start.isoformat().replace('+00:00', 'Z'),
+            'hours': hours, 'cities': cities, 'activity': sorted([h, c, n] for (h, c), n in activity.items()),
+            'events': events, 'regions': regions, 'kpis': kpis, 'skipped': dict(skipped)}
+
+
 def build_real(raw, gaz):
     raw = Path(raw)
     hours, hourly = insights_rows(raw / 'app_open_hourly_region.json')
@@ -369,6 +446,7 @@ def main():
     ap.add_argument('--raw', help='folder with the four Mixpanel exports')
     ap.add_argument('--geonames', required=True, help='folder with cities1000.txt, admin1CodesASCII.txt, countryInfo.txt')
     ap.add_argument('--synthetic', action='store_true')
+    ap.add_argument('--long', help='daily exports since analytics began (see build_long); --raw then supplies the 30-day hourly profile')
     ap.add_argument('--out', default=str(ROOT / 'public/data/oasis.json'))
     ap.add_argument('--gazetteer', help='also write the live-proxy lookup to this path (e.g. data/gazetteer.json)')
     ap.add_argument('--gazetteer-only', action='store_true', help='write the lookup and stop (used by the Pages workflow)')
@@ -379,7 +457,7 @@ def main():
         json.dump(build_gazetteer(gaz), open(args.gazetteer, 'w'), separators=(',', ':'))
         print(f'{args.gazetteer}: {Path(args.gazetteer).stat().st_size // 1024} KB')
         if args.gazetteer_only: return
-    data = build_synthetic(gaz) if args.synthetic else build_real(args.raw, gaz)
+    data = build_synthetic(gaz) if args.synthetic else build_long(args.long, gaz, args.raw) if args.long else build_real(args.raw, gaz)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     json.dump(data, open(args.out, 'w'), separators=(',', ':'))
     kinds = defaultdict(int)
