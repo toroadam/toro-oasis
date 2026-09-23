@@ -160,7 +160,6 @@ document.querySelectorAll('.oasis-chip').forEach(b=>{b.onclick=()=>{const on=b.g
 // stops the tour and stays put; the Network pill starts it again.
 const CHAPTER_AREA={1:r=>!!TORO_BY_STATE.get(r.region),2:r=>TORO_BY_STATE.get(r.region)==='northeast',3:r=>TORO_BY_STATE.get(r.region)==='southwest',
  4:r=>r.lat<-10&&r.lon>110,5:r=>r.lat>6&&r.lat<36&&r.lon>68&&r.lon<98};
-const CHAPTER_TORO={2:'northeast',3:'southwest'};
 // Area figures for the headline, as of the replay clock so they agree with the cards.
 function areaStats(test){
  const t=layer.time,inArea=new Set((data.regions??[]).filter(test).map(r=>r.region));if(!inArea.size)return '';
@@ -176,8 +175,7 @@ function applyChapter(i){
  const v=views[i],stats=CHAPTER_AREA[i]?areaStats(CHAPTER_AREA[i]):'';
  ui.active(i);ui.copy('chapter-'+i,{...v,body:stats?`${v.body} ${stats}`:v.body});
  scene.flyTo(v.lat,v.lon,v.zoom,3000);scene.setRotation(false);
- const g=CHAPTER_TORO[i]&&toroRegions.find(x=>x.id===CHAPTER_TORO[i]);
- if(g)loadShapes().then(sh=>{if(tour.step?.chapter===i||!tour.on)layer.highlight(g.members.flatMap(m=>sh[data.regions[m].region]??[]),g.color);});
+  // Chapters show the globe as is; only the Toro regional breakdown paints regions.
 }
 function applyToroStop(id){
  const g=toroRegions.find(x=>x.id===id);if(!g)return;
