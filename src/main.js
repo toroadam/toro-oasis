@@ -27,7 +27,7 @@ const zoomOut=document.createElement('button');zoomOut.className='oasis-zoomout'
 $('.ex-dock-top').insertAdjacentHTML('afterbegin','<div class="oasis-mode" role="group" aria-label="Mode"><button data-mode="replay" aria-pressed="true">Replay</button><button data-mode="live" aria-pressed="false"><i></i>Live</button></div>');
 $('.ex-range-row').insertAdjacentHTML('beforeend','<span class="oasis-live-status" hidden></span>');
 
-const scene=createScene($('#earth-canvas'),{exposure:1.22,daylight:[-.4,.32,1],homeView:[30,-96],onInteract:()=>scene.setRotation(false)});
+const scene=createScene($('#earth-canvas'),{exposure:1.22,daylight:[-.4,.32,1],homeView:[30,-96],homeOffset:.4,onInteract:()=>scene.setRotation(false)});
 scene.setReduced(reduced());bindZoom(scene);scene.setCityLights(.2);
 
 async function load(){

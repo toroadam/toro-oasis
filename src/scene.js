@@ -10,7 +10,7 @@ export const geographic=(lat,lon,r=R)=>new THREE.Vector3(Math.cos(lat*Math.PI/18
 
 export function orientation(lat,lon){return new THREE.Quaternion().setFromEuler(new THREE.Euler(lat*Math.PI/180,-lon*Math.PI/180-Math.PI/2,0,'XYZ'));}
 
-export function createScene(canvas,{onReady,onInteract,onView,exposure=1.06,daylight=[-.85,.5,.75],story=false,orbital=false,lunar=false,solar=false,homeView=[17,77]}={}) {
+export function createScene(canvas,{onReady,onInteract,onView,exposure=1.06,daylight=[-.85,.5,.75],story=false,orbital=false,lunar=false,solar=false,homeView=[17,77],homeOffset=1.95}={}) {
  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:solar});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.setClearColor(0x05070a);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=exposure;
  if(story){renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;}
@@ -79,7 +79,7 @@ vec3 n=normalize(worldNormal);vec3 v=normalize(cameraPosition-worldPosition);flo
  if(flight){const p=Math.min(1,(t-flight.start)/flight.duration),ease=p*p*(3-2*p);targetQ.slerpQuaternions(flight.from,flight.to,ease);targetZoom=THREE.MathUtils.lerp(flight.fromZoom??0,flight.zoom,ease)-Math.sin(Math.PI*ease)*.12;if(p===1)flight=null;}
  else if(!orbital&&rotation&&!reduced&&!down){targetQ.premultiply(new THREE.Quaternion().setFromAxisAngle(axisY,dt*.021));}
  group.quaternion.slerp(targetQ,1-Math.exp(-dt*5));zoom+=(targetZoom-zoom)*(1-Math.exp(-dt*3));
- const narrow=innerWidth<760;const x=orbital?(narrow||orbitalFocused?0:orbitalDistance<20?1.45:0):story?(narrow?.15:1.20):home?(narrow?.3:1.95):0;group.position.x+=(x-group.position.x)*(1-Math.exp(-dt*2));group.position.y+=((orbital?(narrow?1.1:.4):story&&narrow?1.25:home&&narrow?.88:.13)-group.position.y)*(1-Math.exp(-dt*2));
+ const narrow=innerWidth<760;const x=orbital?(narrow||orbitalFocused?0:orbitalDistance<20?1.45:0):story?(narrow?.15:1.20):home?(narrow?.3:homeOffset):0;group.position.x+=(x-group.position.x)*(1-Math.exp(-dt*2));group.position.y+=((orbital?(narrow?1.1:.4):story&&narrow?1.25:home&&narrow?.88:.13)-group.position.y)*(1-Math.exp(-dt*2));
  camera.position.z=10.5-zoom*6.65;camera.position.x+=((reduced?0:pointer.x*.06)-camera.position.x)*.04;camera.position.y+=((reduced?0:-pointer.y*.04)-camera.position.y)*.04;camera.lookAt(0,0,0);
  if(orbital){displayDistance+=(orbitalDistance-displayDistance)*(1-Math.exp(-dt*3));camera.position.z=displayDistance*(narrow?1.65:1);camera.lookAt(0,0,0);}
  if(story&&!storyNight)targetSun.copy(camera.position).sub(group.position).normalize().add(new THREE.Vector3(-.16,.25,0)).normalize();
@@ -103,7 +103,7 @@ vec3 n=normalize(worldNormal);vec3 v=normalize(cameraPosition-worldPosition);flo
  }
  renderer.render(scene,camera);
  }
- group.position.set(innerWidth<760?.3:1.95,innerWidth<760?.88:.13,0);requestAnimationFrame(animate);
+ group.position.set(innerWidth<760?.3:homeOffset,innerWidth<760?.88:.13,0);requestAnimationFrame(animate);
  if(!lunar)registerNavigation(async(url,prepared)=>{
   await warmJourney(url);
   prepared();beginJourneyUI(true);
