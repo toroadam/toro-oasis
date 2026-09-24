@@ -52,7 +52,7 @@ body .exploration .ex-legend{flex-wrap:wrap;gap:8px}
 /* Live event feed. */
 .oasis-feed{position:absolute;right:5%;top:250px;width:270px;margin:0;padding:0;list-style:none;display:grid;gap:6px;pointer-events:none}
 .oasis-feed li{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;padding:9px 12px;background:#0b0f13cc;border:1px solid #d9dfe21c;border-left:3px solid var(--chip);border-radius:4px;backdrop-filter:blur(12px);animation:oasis-in .5s cubic-bezier(.16,1,.3,1)}
-.oasis-feed li:nth-child(n+4){opacity:.55}.oasis-feed li:nth-child(5){opacity:.3}
+.oasis-feed li:nth-child(n+4){opacity:.7}.oasis-feed li:nth-child(n+5){opacity:.45}
 .oasis-feed i{width:8px;height:8px;border-radius:50%;background:var(--chip);box-shadow:0 0 12px var(--chip)}
 .oasis-feed strong{display:block;font-size:11px;font-weight:600}.oasis-feed em{display:block;font-style:normal;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
 .oasis-feed time{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -79,8 +79,6 @@ body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
 .oasis-feed li{padding:0}
 .oasis-feed li button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-radius:4px}
 .oasis-feed li button:hover{background:#ffffff0d}.oasis-feed li button:focus-visible{outline:2px solid var(--toro);outline-offset:2px}
-@media(max-height:900px){.oasis-feed li:nth-child(n+4){display:none}}
-@media(max-height:780px){.oasis-feed{display:none}}
 
 /* Replay / Live switch, bottom left of the dock. */
 .oasis-mode{display:inline-flex;padding:3px;border:1px solid #d9dfe22e;border-radius:30px;background:#0d1216b0;margin-right:6px}
@@ -104,8 +102,6 @@ body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
 
 /* Right column spacing: feed sits below the cards; zoom buttons move clear of the column. */
 .oasis-feed{top:512px}
-@media(max-height:1020px){.oasis-feed li:nth-child(n+4){display:none}}
-@media(max-height:880px){.oasis-feed{display:none}}
 @media(min-width:1101px){body .exploration .ex-extra{right:calc(5% + 308px)}}
 .ex-dock>.oasis-zoomout{bottom:auto;top:-58px}
 @media(max-width:1440px){.oasis-chip{font-size:10px;padding:5px 10px;gap:6px}body .exploration .ex-legend{gap:6px}}
@@ -131,3 +127,17 @@ body .exploration .ex-detail{top:236px;right:5%;width:292px;padding:20px}
 .oasis-regions span s{display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--swatch);margin-right:8px;vertical-align:1px}
 .oasis-states{margin-top:14px;gap:4px}.oasis-states button{grid-template-columns:0 1fr auto;padding:7px 10px}.oasis-states span{font-size:12px}.oasis-states em{font-size:12px}
 body .exploration .ex-detail{max-height:calc(100vh - 430px);overflow:auto}
+
+/* Shorter screens: tighter right column so the feed keeps room below the cards. */
+@media(max-height:900px) and (min-width:761px){
+ body .exploration .ex-readout{top:112px}
+ body .exploration .ex-readout strong{font-size:26px}
+ .oasis-kpis,body .exploration .ex-detail{top:186px}
+ .oasis-kpi{min-height:0;padding:10px 12px;gap:2px}.oasis-kpi strong{font-size:22px}.oasis-kpi small{font-size:9.5px;line-height:1.3}
+ .oasis-feed li button{padding:7px 12px}
+}
+@media(max-height:760px) and (min-width:761px){
+ body .exploration .ex-readout{top:100px;gap:3px}body .exploration .ex-readout strong{font-size:22px}
+ .oasis-kpis,body .exploration .ex-detail{top:160px}
+ .oasis-kpis header{padding-bottom:0}.oasis-kpi span{font-size:8.5px}.oasis-kpi strong{font-size:19px}
+}

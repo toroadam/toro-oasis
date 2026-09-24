@@ -223,7 +223,7 @@ export function oasisLayer(data, {onEvent, onPick, onHover} = {}) {
    while (nextEvent < data.events.length && data.events[nextEvent][0] <= limit) {
     const [at, c, k] = data.events[nextEvent++], type = k + 1;
     if (type === 5) {flash(c, at); counts.signup = (counts.signup ?? 0) + 1; onEvent?.({kind:'signup', city:c, at}); continue;}
-    if (type === 6) {flash(c, at); counts.controller = (counts.controller ?? 0) + 1; continue;}
+    if (type === 6) {flash(c, at); counts.controller = (counts.controller ?? 0) + 1; onEvent?.({kind:'controller', city:c, at}); continue;}
     if (type === 4) {ripple(c, 4, at, 1, pulse * 1.6); counts.watering++; onEvent?.({kind:'watering', city:c, at}); continue;}
     if (type === 1) flash(c, at);
     ripple(c, type, at, 1, burst); if (type < 3) beam(c, type, at, burst * 1.3); if (type === 1) arc(c, at, burst * 1.6);

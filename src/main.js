@@ -98,14 +98,15 @@ kpis.addEventListener('click',e=>{
 });
 
 // Feed of controller outcomes. Each entry flies to its city.
-const verb={added:'Controller added',error:'Setup error',cancelled:'Setup cancelled',signup:'New user'};
+const verb={added:'Controller added',error:'Setup error',cancelled:'Setup cancelled',signup:'New user',controller:'Controller connected',watering:'Zone watering'};
+const feedColor={signup:'#ffffff',controller:'#42ce11'};
 const chips=Object.fromEntries(KINDS.map(k=>[k.id,true]));
 function pushFeed({kind,city,at}){
- if(!chips[kind]||kind==='activity'||kind==='watering')return; // the feed is for controller outcomes
- const item=document.createElement('li');item.style.setProperty('--chip',KINDS.find(k=>k.id===kind)?.color??'#ffffff');
+ if(chips[kind]===false||kind==='activity'||!verb[kind])return; // kinds without a legend chip (new users, controllers connected) always show
+ const item=document.createElement('li');item.style.setProperty('--chip',KINDS.find(k=>k.id===kind)?.color??feedColor[kind]??'#ffffff');
  item.innerHTML=`<button><i></i><span><strong>${verb[kind]}</strong><em>${place(city)}</em></span><time>${hhmm(new Date(data.startDate.getTime()+at*1000))}</time></button>`;
  item.querySelector('button').onclick=()=>focusCity(city);
- feed.prepend(item);while(feed.children.length>5)feed.lastChild.remove();
+ feed.prepend(item);while(feed.children.length>Math.max(1,feedRoom))feed.lastChild.remove();
 }
 
 // City detail replaces the cards; closing it brings them back.
@@ -141,7 +142,7 @@ function focusToroRegion(id){
  detail.querySelectorAll('[data-region]').forEach(b=>b.onclick=()=>focusRegion(+b.dataset.region));
  loadShapes().then(s=>{if(!detail.hidden&&detail.dataset.region===g.name)layer.highlight(g.members.flatMap(i=>s[data.regions[i].region]??[]),g.color);});
 }
-function goHome(){layer.highlight(null);ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
+function goHome(){headline=null;layer.highlight(null);ui.active(0);ui.copy(live?'live':'0',live?liveView:views[0]);scene.home();scene.setRotation(!reduced());}
 zoomOut.onclick=goHome;
 
 // Replay controls.
@@ -167,12 +168,20 @@ function areaStats(test){
  for(const [h,c,n] of data.activity)if(h*3600<=t&&cityIn(c))opens+=n;
  for(const [at,c,k] of data.events)if(k===5&&at<=t&&cityIn(c)){controllers++;const st=data.cities[c][3];byState.set(st,(byState.get(st)??0)+1);}
  const top=[...byState].sort((a,b)=>b[1]-a[1])[0],when=new Date(data.startDate.getTime()+t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+ if(!opens&&!controllers)return '';
  return `By ${when}: ${fmt.format(controllers)} ${controllers===1?'controller':'controllers'} located and ${fmt.format(opens)} app opens${top&&top[1]>1?`, most in ${top[0]}`:''}.`;
 }
+// The headline's figures keep up with the replay clock while a chapter or region is shown.
+let headline=null,headlineAt=0;
+function refreshHeadline(now){
+ if(!headline?.test||now-headlineAt<1500)return;headlineAt=now;
+ const p=$('.ex-copy p'),text=`${headline.base} ${areaStats(headline.test)}`.trim();if(p&&p.textContent!==text)p.textContent=text;
+}
 function applyChapter(i){
- showCity(-1);
+ showCity(-1);headline=null;
  if(i===0){goHome();return;}
  const v=views[i],stats=CHAPTER_AREA[i]?areaStats(CHAPTER_AREA[i]):'';
+ headline={base:v.body,test:CHAPTER_AREA[i]};
  ui.active(i);ui.copy('chapter-'+i,{...v,body:stats?`${v.body} ${stats}`:v.body});
  scene.flyTo(v.lat,v.lon,v.zoom,3000);scene.setRotation(false);
   // Chapters show the globe as is; only the Toro regional breakdown paints regions.
@@ -181,7 +190,9 @@ function applyToroStop(id){
  const g=toroRegions.find(x=>x.id===id);if(!g)return;
  focusToroRegion(id);
  const states=new Set(g.members.map(i=>data.regions[i].region));
- ui.copy('toro-'+id,{kicker:`TORO REGION · ${g.abbr}`,title:`${g.name}.`,body:`${g.members.length} ${g.members.length===1?'state':'states'} in Toro's ${g.name} region. ${areaStats(r=>states.has(r.region))}`});
+ const base=`${g.members.length} ${g.members.length===1?'state':'states'} in Toro's ${g.name} region.`,test=r=>states.has(r.region);
+ headline={base,test};
+ ui.copy('toro-'+id,{kicker:`TORO REGION · ${g.abbr}`,title:`${g.name}.`,body:`${base} ${areaStats(test)}`});
 }
 const TOUR=[{chapter:0,s:10},{chapter:1,s:10},{chapter:2,s:10},{chapter:3,s:10},{chapter:4,s:8},{chapter:5,s:8},{chapter:1,s:6},
  ...['pacific','rocky','southwest','midwest','northeast','southeast'].map(id=>({toro:id,s:7}))];
@@ -278,9 +289,17 @@ function growKpis(){
  set('month',t<controllerTrackedFrom?'—':fmt.format(countUpTo(addedAt,t)-countUpTo(addedAt,monthStart-1)));
  set('onlineLabel','Today · '+onlineText);
 }
+// The feed sits just below the cards and shows as many entries as fit above the dock.
+let feedRoom=5;
+function layoutFeed(){
+ const shell=shellRoot.getBoundingClientRect(),top=kpis.getBoundingClientRect().bottom-shell.top+12,bottom=$('.ex-dock').getBoundingClientRect().top-shell.top-16;
+ const row=innerHeight<=900?46:54;feedRoom=Math.max(0,Math.min(6,Math.floor((bottom-top)/row)));feed.style.top=top+'px';feed.style.display=feedRoom?'':'none';
+ while(feed.children.length>Math.max(1,feedRoom))feed.lastChild.remove();
+}
+addEventListener('resize',layoutFeed);
 let lastUi=0;
 function frame(t){
- requestAnimationFrame(frame);tickTour(t);
+ requestAnimationFrame(frame);tickTour(t);refreshHeadline(t);
  const date=layer.date(),sun=subsolar(date);scene.setSunGeo(sun.lat,sun.lon);
  if(t-lastUi<100)return;lastUi=t;
  zoomOut.hidden=scene.getState().zoom<.3;
@@ -297,7 +316,7 @@ function frame(t){
   ui.readout(clock(date)+' UTC',`${data.project.toUpperCase()} · ${fmt.format(Math.round(data.prefix[Math.min(data.hours,hour+1)]-data.prefix[Math.max(0,hour-23)]))} OPENS IN THE LAST 24 H`);
   if(document.activeElement!==range)range.value=layer.time/data.duration;range.style.setProperty('--p',(layer.time/data.duration*100).toFixed(2)+'%');
  }
- growKpis();
+ growKpis();if(!kpis.hidden)layoutFeed();
  const counts=live?(liveKind==='stream'?stream.counts:liveToday)??{}:layer.counts;
  for(const k of KINDS)document.querySelector(`.oasis-chip[data-kind="${k.id}"] b`).textContent=fmt.format(Math.round(counts[k.id]??0));
 }
