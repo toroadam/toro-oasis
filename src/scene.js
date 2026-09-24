@@ -1,3 +1,4 @@
+/*! Globe renderer portions: Copyright (c) 2026 Ethan Rogers, MIT License (see LICENSE.txt) */
 import { mobileCamera, mobileOffset } from './mobile-camera.js';
 import { registerNavigation, incomingJourney, finishArrival, leaveWithFrame, beginJourneyUI, journeyUI, prepareJourneyUI, warmJourney } from './page-journey.js';
 import * as THREE from 'three';
