@@ -274,7 +274,12 @@ const countUpTo=(arr,t)=>{let lo=0,hi=arr.length;while(lo<hi){const m=(lo+hi)>>1
 function growKpis(){
  if(kpiView!=='network'||kpis.hidden)return;
  const t=layer.time,k=data.kpis,set=(id,v)=>{const el=kpis.querySelector(`[data-kpi="${id}"]`);if(el&&el.textContent!==v)el.textContent=v;};
- if(live){set('users',fmt.format(k.users));set('controllers',fmt.format(k.controllerUsers??k.controllers));set('controllersNote',k.controllerUsers?`Accounts with a controller · ${fmt.format(k.controllers)} located`:k.controllersNote??'Connected, all time');set('onlineLabel',onlineText);set('controllers',fmt.format(k.controllers));set('month',fmt.format(liveKpis?.addedMonth??k.addedMonth));set('monthLabel',`Controllers added in ${liveKpis?.month??k.month}`);return;}
+ if(live){
+  // Live shows the real fleet from the Oasis device registry when the build provides it
+  // (set by hand for now; a data feed will replace it).
+  const asOf=k.fleetAsOf?new Date(k.fleetAsOf+'T12:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}):'';
+  set('users',fmt.format(k.users));set('controllers',fmt.format(k.fleet??k.controllerUsers??k.controllers));
+  set('controllersNote',k.fleet?`${k.fleetSource??'Device registry'}${asOf?`, ${asOf}`:''} · ${fmt.format(k.controllers)} seen in the app`:k.controllerUsers?`Accounts with a controller · ${fmt.format(k.controllers)} located`:k.controllersNote??'Connected, all time');set('onlineLabel',onlineText);set('month',fmt.format(liveKpis?.addedMonth??k.addedMonth));set('monthLabel',`Controllers added in ${liveKpis?.month??k.month}`);return;}
  const day=Math.max(0,Math.floor(t/86400));
  set('users',fmt.format(customerCum?customerCum[Math.min(customerCum.length-1,day)]:k.users-(signupAt.length-countUpTo(signupAt,t))));
  const ids=controllerCum?controllerCum[Math.min(controllerCum.length-1,day)]:k.controllers;
